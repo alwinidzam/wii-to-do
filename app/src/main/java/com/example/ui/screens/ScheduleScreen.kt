@@ -112,12 +112,13 @@ fun ScheduleScreen(
   val displayedSchedule = scheduleItems.filter { !deepWorkOnly || it.isDeepWork }
   val dateSubtitle = "$currentDayFormatted • ${displayedSchedule.size} commitments"
 
-  Column(modifier = modifier.fillMaxSize().background(BrandCanvas)) {
-    // 1. Fixed Header with Logo & Segmented Control (pinned at top)
-    Surface(
-      modifier = Modifier.fillMaxWidth(),
-      color = BrandCanvas
-    ) {
+  Box(modifier = modifier.fillMaxSize().background(BrandCanvas)) {
+    Column(modifier = Modifier.fillMaxSize()) {
+      // 1. Fixed Header with Logo & Segmented Control (pinned at top)
+      Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = BrandCanvas
+      ) {
       Row(
         modifier = Modifier
           .fillMaxWidth()
@@ -639,8 +640,9 @@ fun ScheduleScreen(
         }
       }
     }
+  }
 
-    // 7. Persistent Floating Focus Mini-Player
+  // 7. Persistent Floating Focus Mini-Player
     if (activeFocusSession != null) {
       Surface(
         modifier = Modifier

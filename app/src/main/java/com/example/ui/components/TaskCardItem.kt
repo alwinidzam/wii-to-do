@@ -55,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
@@ -147,6 +148,7 @@ fun TaskCardItem(
   }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun TaskCardContent(
   task: TaskItem,
@@ -160,6 +162,7 @@ private fun TaskCardContent(
   onDeleteClick: (() -> Unit)?,
   modifier: Modifier = Modifier
 ) {
+  val haptic = LocalHapticFeedback.current
   val cardElevation = if (isDone) 0.dp else 2.dp
   val cardAlpha = if (isDone) 0.65f else 1.0f
 

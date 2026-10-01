@@ -142,12 +142,6 @@ fun HomeScreen(
   val completedTasks = filteredTasks.filter { it.isCompleted }
   val totalRemaining = activeTasks.size
 
-  // Category counts
-  val countAll = tasks.size
-  val countCollege = tasks.count { it.category.equals("College", ignoreCase = true) }
-  val countWork = tasks.count { it.category.equals("Work", ignoreCase = true) }
-  val countPersonal = tasks.count { it.category.equals("Personal", ignoreCase = true) }
-
   val strings = remember(currentLanguage) { Translations.get(currentLanguage) }
 
   // Category counts
