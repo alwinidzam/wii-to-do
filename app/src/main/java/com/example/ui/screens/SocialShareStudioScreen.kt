@@ -386,7 +386,7 @@ fun SocialShareStudioScreen(
                         text = "${userProfile.streakDays} Days 🔥",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (theme == ShareCardTheme.DARK_OBSIDIAN) Color(0xFFFDE68A) else Color(0xFFD97706)
+                        color = if (config.theme == ShareCardTheme.DARK_OBSIDIAN) Color(0xFFFDE68A) else Color(0xFFD97706)
                       )
                     }
                   }

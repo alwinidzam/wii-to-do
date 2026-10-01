@@ -45,7 +45,16 @@ data class TaskItem(
   val subtasksTotalCount: Int? = null,
   val isTomorrow: Boolean = false,
   val courseName: String? = null
-)
+) {
+  val actualSubtaskBadge: String?
+    get() = if (subtasks.isNotEmpty()) "${subtasks.count { it.isCompleted }}/${subtasks.size} sub-tasks" else subtaskBadge
+
+  val actualSubtasksTotal: Int
+    get() = if (subtasks.isNotEmpty()) subtasks.size else (subtasksTotalCount ?: 0)
+
+  val actualSubtasksCompleted: Int
+    get() = if (subtasks.isNotEmpty()) subtasks.count { it.isCompleted } else (subtasksCompletedCount ?: 0)
+}
 
 data class ScheduleCommitment(
   val id: String,

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -143,7 +144,7 @@ fun WiiToDoApp(
           .fillMaxSize()
           .padding(innerPadding)
       ) {
-        when (destination) {
+        when (val currentDest = destination) {
           AppDestination.Home -> {
             HomeScreen(
               tasks = tasks,
@@ -211,7 +212,7 @@ fun WiiToDoApp(
           }
 
           is AppDestination.TaskDetail -> {
-            val targetId = destination.taskId.ifEmpty { selectedDetailTaskId }
+            val targetId = currentDest.taskId.ifEmpty { selectedDetailTaskId }
             val currentTask = tasks.find { it.id == targetId }
               ?: tasks.find { it.id == selectedDetailTaskId }
               ?: tasks.firstOrNull()
@@ -366,17 +367,17 @@ fun WiiToDoApp(
           }
 
           is AppDestination.AddSubTask -> {
-            subTaskSheetParentId = destination.taskId
+            subTaskSheetParentId = currentDest.taskId
             viewModel.navigateBack()
           }
 
           is AppDestination.ScheduleBooking -> {
-            scheduleBookingSlot = Pair(destination.startTime, destination.endTime)
+            scheduleBookingSlot = Pair(currentDest.startTime, currentDest.endTime)
             viewModel.navigateBack()
           }
 
           is AppDestination.FocusSetup -> {
-            val task = tasks.find { it.id == destination.taskId }
+            val task = tasks.find { it.id == currentDest.taskId }
             val title = task?.title ?: "Deep Work Sprint"
             val effort = task?.estimatedEffortMinutes ?: 25
             viewModel.startFocusSession(title, effort, "Brown Noise Calm")
