@@ -1,0 +1,261 @@
+package com.example.ui.components
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.ui.theme.BrandBorder
+import com.example.ui.theme.BrandCharcoal
+import com.example.ui.theme.BrandSecondary
+import com.example.ui.theme.BrandTerracotta
+
+enum class NavigationTab(val label: String, val activeIcon: ImageVector, val inactiveIcon: ImageVector) {
+  HOME("Home", Icons.Filled.Home, Icons.Outlined.Home),
+  SCHEDULE("Schedule", Icons.Outlined.CalendarToday, Icons.Outlined.CalendarToday),
+  PROJECTS("Projects", Icons.Outlined.Folder, Icons.Outlined.Folder),
+  PROFILE("Profile", Icons.Outlined.Person, Icons.Outlined.Person)
+}
+
+/**
+ * Super High-End Floating Navigation Dock & FAB:
+ * - Tactile spring-based press feedback
+ * - Haptic responses on tap
+ * - Freestanding Frosted Pill Navbar with subtle glassmorphic alpha
+ * - Smooth animated active pill indicator
+ * - Ultra-crisp typography & geometric precision
+ */
+@Composable
+fun BottomDockNavigation(
+  currentTab: NavigationTab,
+  onTabSelected: (NavigationTab) -> Unit,
+  onAddClick: () -> Unit,
+  modifier: Modifier = Modifier
+) {
+  val haptic = LocalHapticFeedback.current
+  val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+  val fabInteractionSource = remember { MutableInteractionSource() }
+  val isFabPressed by fabInteractionSource.collectIsPressedAsState()
+  val fabScale by animateFloatAsState(
+    targetValue = if (isFabPressed) 0.92f else 1.0f,
+    animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+    label = "fab_scale"
+  )
+
+  Box(
+    modifier = modifier
+      .fillMaxWidth()
+      .padding(start = 16.dp, end = 16.dp, bottom = 20.dp + bottomInset),
+    contentAlignment = Alignment.Center
+  ) {
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.spacedBy(12.dp),
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      // 1. Freestanding Frosted Pill Navbar (60.dp height, expanded weight 1f)
+      Surface(
+        modifier = Modifier
+          .weight(1f)
+          .height(60.dp)
+          .shadow(
+            elevation = 16.dp,
+            shape = RoundedCornerShape(30.dp),
+            ambientColor = Color(0x18000000),
+            spotColor = Color(0x22000000)
+          ),
+        shape = RoundedCornerShape(30.dp),
+        color = Color.White.copy(alpha = 0.96f),
+        border = BorderStroke(1.dp, BrandBorder)
+      ) {
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+          horizontalArrangement = Arrangement.SpaceAround,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          NavigationTab.values().forEach { tab ->
+            val isSelected = (tab == currentTab)
+            val tabInteractionSource = remember { MutableInteractionSource() }
+            val isTabPressed by tabInteractionSource.collectIsPressedAsState()
+            val tabScale by animateFloatAsState(
+              targetValue = if (isTabPressed) 0.94f else 1.0f,
+              animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+              label = "tab_scale"
+            )
+
+            if (isSelected) {
+              // Active Tab: Charcoal Pill with 18dp Icon + Label
+              Surface(
+                modifier = Modifier
+                  .testTag("nav_tab_${tab.name.lowercase()}")
+                  .graphicsLayer {
+                    scaleX = tabScale
+                    scaleY = tabScale
+                  }
+                  .height(44.dp)
+                  .clip(RoundedCornerShape(22.dp))
+                  .clickable(
+                    interactionSource = tabInteractionSource,
+                    indication = null
+                  ) {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onTabSelected(tab)
+                  },
+                shape = RoundedCornerShape(22.dp),
+                color = BrandCharcoal,
+                shadowElevation = 2.dp
+              ) {
+                Row(
+                  modifier = Modifier.padding(horizontal = 14.dp),
+                  verticalAlignment = Alignment.CenterVertically,
+                  horizontalArrangement = Arrangement.Center
+                ) {
+                  Icon(
+                    imageVector = tab.activeIcon,
+                    contentDescription = tab.label,
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                  )
+                  Spacer(modifier = Modifier.width(6.dp))
+                  Text(
+                    text = tab.label,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                    letterSpacing = (-0.01).sp
+                  )
+                }
+              }
+            } else {
+              // Inactive Tab: 44dp Circular Icon Button with 18dp Icon
+              Box(
+                modifier = Modifier
+                  .testTag("nav_tab_${tab.name.lowercase()}")
+                  .graphicsLayer {
+                    scaleX = tabScale
+                    scaleY = tabScale
+                  }
+                  .size(44.dp)
+                  .clip(CircleShape)
+                  .clickable(
+                    interactionSource = tabInteractionSource,
+                    indication = null
+                  ) {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onTabSelected(tab)
+                  },
+                contentAlignment = Alignment.Center
+              ) {
+                Icon(
+                  imageVector = tab.inactiveIcon,
+                  contentDescription = tab.label,
+                  tint = BrandSecondary,
+                  modifier = Modifier.size(18.dp)
+                )
+
+                // Unread dot indicator on Projects tab
+                if (tab == NavigationTab.PROJECTS) {
+                  Box(
+                    modifier = Modifier
+                      .size(6.dp)
+                      .align(Alignment.TopEnd)
+                      .padding(top = 4.dp, end = 4.dp)
+                      .background(BrandTerracotta, CircleShape)
+                  )
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // 2. Primary Action Floating Add Button (Matching 60.dp Size, Compact 12.dp Gap)
+      Surface(
+        modifier = Modifier
+          .testTag("add_task_fab")
+          .size(60.dp)
+          .graphicsLayer {
+            scaleX = fabScale
+            scaleY = fabScale
+          }
+          .shadow(
+            elevation = 16.dp,
+            shape = CircleShape,
+            ambientColor = Color(0x38000000),
+            spotColor = Color(0x551F1F1F)
+          )
+          .clip(CircleShape)
+          .clickable(
+            interactionSource = fabInteractionSource,
+            indication = null
+          ) {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            onAddClick()
+          },
+        shape = CircleShape,
+        color = BrandCharcoal
+      ) {
+        Box(contentAlignment = Alignment.Center) {
+          Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = "Add new task",
+            tint = Color.White,
+            modifier = Modifier.size(24.dp)
+          )
+        }
+      }
+    }
+  }
+}

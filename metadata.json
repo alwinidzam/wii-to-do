@@ -1,0 +1,6 @@
+{
+  "name": "WII To-Do",
+  "description": "Warm architectural minimalist productivity app with task tracking, Pomodoro focus mode, schedule timeline, and project management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
