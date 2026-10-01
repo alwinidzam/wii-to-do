@@ -26,7 +26,11 @@ jobs:
 
       - name: Inject Environment Variables
         run: |
-          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env
+          KEY="${{ secrets.GEMINI_API_KEY }}"
+          if [ -z "$KEY" ]; then
+            KEY="AIzaSyDummyKeyForBuild"
+          fi
+          echo "GEMINI_API_KEY=\"$KEY\"" > .env
 
       - name: Build APK with Gradle
         env:

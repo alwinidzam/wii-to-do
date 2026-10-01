@@ -253,13 +253,3 @@ data class ShareCardConfig(
   val customQuote: String = "Building focus, one architectural brick at a time."
 )
 
-val TaskItem.actualSubtasksTotal: Int
-  get() = if (subtasks.isNotEmpty()) subtasks.size else (subtasksTotalCount ?: 0)
-
-val TaskItem.actualSubtasksCompleted: Int
-  get() = if (subtasks.isNotEmpty()) subtasks.count { it.isCompleted } else (subtasksCompletedCount ?: 0)
-
-val TaskItem.actualSubtaskBadge: String?
-  get() = if (actualSubtasksTotal > 0) "$actualSubtasksCompleted/$actualSubtasksTotal sub-tasks" else subtaskBadge
-
-
