@@ -21,28 +21,16 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.11.1'
-
-      - name: Generate Wrapper if Missing
-        run: |
-          if [ ! -f "./gradlew" ]; then
-            gradle wrapper
-            chmod +x gradlew
-          fi
+      - name: Grant Execute Permission to Gradlew
+        run: chmod +x gradlew
 
       - name: Inject Environment Variables
         run: |
           echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env
 
-      - name: Build APK (Release & Debug)
+      - name: Build APK with Gradle
         run: |
-          ./gradlew assembleRelease --stacktrace || ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
