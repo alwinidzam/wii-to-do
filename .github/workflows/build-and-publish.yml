@@ -33,7 +33,7 @@ jobs:
           JAVA_OPTS: "-Djava.awt.headless=true"
           GRADLE_OPTS: "-Djava.awt.headless=true"
         run: |
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --stacktrace --info
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
