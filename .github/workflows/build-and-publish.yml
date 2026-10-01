@@ -29,6 +29,9 @@ jobs:
           echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env
 
       - name: Build APK with Gradle
+        env:
+          JAVA_OPTS: "-Djava.awt.headless=true"
+          GRADLE_OPTS: "-Djava.awt.headless=true"
         run: |
           ./gradlew assembleDebug --stacktrace
 
