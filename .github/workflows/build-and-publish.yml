@@ -33,7 +33,27 @@ jobs:
           JAVA_OPTS: "-Djava.awt.headless=true"
           GRADLE_OPTS: "-Djava.awt.headless=true"
         run: |
-          ./gradlew assembleDebug --stacktrace --info
+          set -o pipefail
+          ./gradlew assembleDebug --stacktrace 2>&1 | tee gradle-build.log
+
+      - name: Print Failure Log Summary
+        if: failure()
+        run: |
+          echo "==================== BUILD FAILURE DETAILS ===================="
+          if [ -f gradle-build.log ]; then
+            tail -n 120 gradle-build.log
+          fi
+          echo "==============================================================="
+
+      - name: Upload Build Diagnostics on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-failure-logs
+          path: |
+            gradle-build.log
+            app/build/reports/
+            app/build/outputs/logs/
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
