@@ -102,21 +102,20 @@ fun ProjectsScreen(
     selectedCategory == "All" || it.category.equals(selectedCategory, ignoreCase = true)
   }
 
-  LazyColumn(
+  Column(
     modifier = modifier
       .fillMaxSize()
       .background(BrandCanvas)
-      .padding(horizontal = 20.dp),
-    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-      top = topInset + 12.dp,
-      bottom = 150.dp
-    ),
-    verticalArrangement = Arrangement.spacedBy(16.dp)
   ) {
-    // 1. Top Bar
-    item {
+    // 1. Fixed Top Bar (Pinned at top, does not scroll)
+    Surface(
+      modifier = Modifier.fillMaxWidth(),
+      color = BrandCanvas
+    ) {
       Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(start = 20.dp, end = 20.dp, top = topInset + 12.dp, bottom = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
       ) {
@@ -174,6 +173,17 @@ fun ProjectsScreen(
         }
       }
     }
+
+    LazyColumn(
+      modifier = Modifier
+        .fillMaxSize()
+        .padding(horizontal = 20.dp),
+      contentPadding = androidx.compose.foundation.layout.PaddingValues(
+        top = 4.dp,
+        bottom = 150.dp
+      ),
+      verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
 
     if (viewTab == "Overview") {
       // Projects Overview View
@@ -928,3 +938,5 @@ fun ProjectsScreen(
     }
   }
 }
+}
+

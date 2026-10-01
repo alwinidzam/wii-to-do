@@ -24,20 +24,26 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.UUID
 
-class ToDoRepository private constructor(private val db: WiiDatabase? = null) {
+class ToDoRepository private constructor(
+  private val db: WiiDatabase? = null,
+  private val appContext: Context? = null
+) {
 
   companion object {
     @Volatile
     private var instance: ToDoRepository? = null
     private var database: WiiDatabase? = null
+    private var applicationContext: Context? = null
 
     fun initialize(context: Context) {
       if (instance == null) {
         synchronized(this) {
           if (instance == null) {
-            val databaseInstance = WiiDatabase.getDatabase(context)
+            val appCtx = context.applicationContext
+            applicationContext = appCtx
+            val databaseInstance = WiiDatabase.getDatabase(appCtx)
             database = databaseInstance
-            val repo = ToDoRepository(databaseInstance)
+            val repo = ToDoRepository(databaseInstance, appCtx)
             instance = repo
             repo.startDatabaseSync()
           }
@@ -47,12 +53,36 @@ class ToDoRepository private constructor(private val db: WiiDatabase? = null) {
 
     fun getInstance(): ToDoRepository {
       return instance ?: synchronized(this) {
-        instance ?: ToDoRepository(database).also {
+        instance ?: ToDoRepository(database, applicationContext).also {
           instance = it
           it.startDatabaseSync()
         }
       }
     }
+  }
+
+  fun isUserLoggedIn(): Boolean {
+    val ctx = appContext ?: applicationContext ?: return false
+    val prefs = ctx.getSharedPreferences("wii_todo_auth_prefs", Context.MODE_PRIVATE)
+    return prefs.getBoolean("is_logged_in", false)
+  }
+
+  fun setUserLoggedIn(loggedIn: Boolean) {
+    val ctx = appContext ?: applicationContext ?: return
+    val prefs = ctx.getSharedPreferences("wii_todo_auth_prefs", Context.MODE_PRIVATE)
+    prefs.edit().putBoolean("is_logged_in", loggedIn).apply()
+  }
+
+  fun getAppLanguage(): String {
+    val ctx = appContext ?: applicationContext ?: return "id"
+    val prefs = ctx.getSharedPreferences("wii_todo_app_prefs", Context.MODE_PRIVATE)
+    return prefs.getString("wii_app_language", "id") ?: "id"
+  }
+
+  fun setAppLanguage(langCode: String) {
+    val ctx = appContext ?: applicationContext ?: return
+    val prefs = ctx.getSharedPreferences("wii_todo_app_prefs", Context.MODE_PRIVATE)
+    prefs.edit().putString("wii_app_language", langCode).apply()
   }
 
   private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())

@@ -112,81 +112,87 @@ fun ScheduleScreen(
   val displayedSchedule = scheduleItems.filter { !deepWorkOnly || it.isDeepWork }
   val dateSubtitle = "$currentDayFormatted • ${displayedSchedule.size} commitments"
 
-  Box(modifier = modifier.fillMaxSize().background(BrandCanvas)) {
-    LazyColumn(
-      modifier = Modifier
-        .fillMaxSize()
-        .padding(horizontal = 20.dp),
-      contentPadding = androidx.compose.foundation.layout.PaddingValues(
-        top = topInset + 12.dp,
-        bottom = 150.dp
-      ),
-      verticalArrangement = Arrangement.spacedBy(16.dp)
+  Column(modifier = modifier.fillMaxSize().background(BrandCanvas)) {
+    // 1. Fixed Header with Logo & Segmented Control (pinned at top)
+    Surface(
+      modifier = Modifier.fillMaxWidth(),
+      color = BrandCanvas
     ) {
-      // 1. Header with Logo & Segmented Control
-      item {
+      Row(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(start = 20.dp, end = 20.dp, top = topInset + 12.dp, bottom = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+      ) {
         Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.SpaceBetween,
-          verticalAlignment = Alignment.CenterVertically
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-          ) {
-            WiiBrandLogo(size = 30.dp)
-            Column {
-              Text(
-                text = "WII To-Do",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = BrandCharcoal,
-                letterSpacing = (-0.02).sp
-              )
-              Text(
-                text = "SCHEDULE & TIMELINE",
-                fontSize = 10.sp,
-                color = BrandSecondary,
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 0.5.sp
-              )
-            }
+          WiiBrandLogo(size = 30.dp)
+          Column {
+            Text(
+              text = "WII To-Do",
+              fontSize = 16.sp,
+              fontWeight = FontWeight.Bold,
+              color = BrandCharcoal,
+              letterSpacing = (-0.02).sp
+            )
+            Text(
+              text = "SCHEDULE & TIMELINE",
+              fontSize = 10.sp,
+              color = BrandSecondary,
+              fontWeight = FontWeight.Medium,
+              letterSpacing = 0.5.sp
+            )
           }
+        }
 
-          // Segmented Day/Week Toggle
-          Surface(
-            shape = RoundedCornerShape(10.dp),
-            color = Color.White,
-            border = BorderStroke(1.dp, BrandBorder)
-          ) {
-            Row(modifier = Modifier.padding(3.dp)) {
-              val modes = listOf("Day", "Week")
-              modes.forEach { mode ->
-                val isSelected = (mode == viewMode)
-                Surface(
-                  modifier = Modifier
-                    .testTag("schedule_mode_$mode")
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable {
-                      haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                      onViewModeChanged(mode)
-                    },
-                  shape = RoundedCornerShape(8.dp),
-                  color = if (isSelected) BrandCharcoal else Color.Transparent
-                ) {
-                  Text(
-                    text = mode,
-                    fontSize = 12.sp,
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                    color = if (isSelected) Color.White else BrandSecondary,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
-                  )
-                }
+        // Segmented Day/Week Toggle
+        Surface(
+          shape = RoundedCornerShape(10.dp),
+          color = Color.White,
+          border = BorderStroke(1.dp, BrandBorder)
+        ) {
+          Row(modifier = Modifier.padding(3.dp)) {
+            val modes = listOf("Day", "Week")
+            modes.forEach { mode ->
+              val isSelected = (mode == viewMode)
+              Surface(
+                modifier = Modifier
+                  .testTag("schedule_mode_$mode")
+                  .clip(RoundedCornerShape(8.dp))
+                  .clickable {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onViewModeChanged(mode)
+                  },
+                shape = RoundedCornerShape(8.dp),
+                color = if (isSelected) BrandCharcoal else Color.Transparent
+              ) {
+                Text(
+                  text = mode,
+                  fontSize = 12.sp,
+                  fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                  color = if (isSelected) Color.White else BrandSecondary,
+                  modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                )
               }
             }
           }
         }
       }
+    }
+
+    LazyColumn(
+      modifier = Modifier
+        .fillMaxSize()
+        .padding(horizontal = 20.dp),
+      contentPadding = androidx.compose.foundation.layout.PaddingValues(
+        top = 4.dp,
+        bottom = 150.dp
+      ),
+      verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
 
       // 2. Day Header & Title
       item {

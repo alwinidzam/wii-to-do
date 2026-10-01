@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.WorkspacePremium
@@ -53,6 +54,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.UserProfile
 import com.example.ui.components.WiiBrandLogo
+import com.example.ui.i18n.AppLanguage
+import com.example.ui.i18n.LanguageSwitchPill
+import com.example.ui.i18n.Translations
 import com.example.ui.theme.BrandAvatarBg
 import com.example.ui.theme.BrandAvatarBorder
 import com.example.ui.theme.BrandBorder
@@ -80,26 +84,27 @@ fun ProfileScreen(
   onViewLevelCelebration: () -> Unit,
   onSignOut: () -> Unit,
   modifier: Modifier = Modifier,
-  onOpenMilestoneJourney: () -> Unit = onViewLevelCelebration
+  onOpenMilestoneJourney: () -> Unit = onViewLevelCelebration,
+  currentLanguage: AppLanguage = AppLanguage.ID,
+  onLanguageSelected: (AppLanguage) -> Unit = {}
 ) {
   val haptic = LocalHapticFeedback.current
   val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
-  LazyColumn(
+  Column(
     modifier = modifier
       .fillMaxSize()
       .background(BrandCanvas)
-      .padding(horizontal = 20.dp),
-    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-      top = topInset + 12.dp,
-      bottom = 150.dp
-    ),
-    verticalArrangement = Arrangement.spacedBy(16.dp)
   ) {
-    // 1. Top Bar
-    item {
+    // 1. Fixed Top Bar (Pinned at top, does not scroll)
+    Surface(
+      modifier = Modifier.fillMaxWidth(),
+      color = BrandCanvas
+    ) {
       Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(start = 20.dp, end = 20.dp, top = topInset + 12.dp, bottom = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
       ) {
@@ -117,7 +122,7 @@ fun ProfileScreen(
               letterSpacing = (-0.02).sp
             )
             Text(
-              text = "SETTINGS & PREFERENCES",
+              text = if (currentLanguage == AppLanguage.ID) "PENGATURAN & PREFERENSI" else "SETTINGS & PREFERENCES",
               fontSize = 10.sp,
               color = BrandSecondary,
               fontWeight = FontWeight.Medium,
@@ -126,21 +131,42 @@ fun ProfileScreen(
           }
         }
 
-        Surface(
-          shape = RoundedCornerShape(12.dp),
-          color = BrandOliveBg,
-          border = BorderStroke(1.dp, BrandOliveBorder)
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-          Text(
-            text = "PRO",
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            color = BrandOlive,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+          LanguageSwitchPill(
+            currentLanguage = currentLanguage,
+            onLanguageSelected = onLanguageSelected
           )
+
+          Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = BrandOliveBg,
+            border = BorderStroke(1.dp, BrandOliveBorder)
+          ) {
+            Text(
+              text = "PRO",
+              fontSize = 11.sp,
+              fontWeight = FontWeight.Bold,
+              color = BrandOlive,
+              modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+            )
+          }
         }
       }
     }
+
+    LazyColumn(
+      modifier = Modifier
+        .fillMaxSize()
+        .padding(horizontal = 20.dp),
+      contentPadding = androidx.compose.foundation.layout.PaddingValues(
+        top = 4.dp,
+        bottom = 150.dp
+      ),
+      verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
 
     // 2. Profile Header Card
     item {
@@ -478,6 +504,52 @@ fun ProfileScreen(
               onToggleSounds()
             }
           )
+          HorizontalDivider(color = BrandBorderLight, thickness = 1.dp)
+          // Display Language Row (Segmented ID / EN)
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+          ) {
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              modifier = Modifier.weight(1f)
+            ) {
+              Box(
+                modifier = Modifier
+                  .size(36.dp)
+                  .background(BrandPillBg, CircleShape),
+                contentAlignment = Alignment.Center
+              ) {
+                Icon(
+                  imageVector = Icons.Default.Translate,
+                  contentDescription = null,
+                  tint = BrandCharcoal,
+                  modifier = Modifier.size(18.dp)
+                )
+              }
+              Spacer(modifier = Modifier.width(12.dp))
+              Column {
+                Text(
+                  text = if (currentLanguage == AppLanguage.ID) "Bahasa Tampilan" else "Display Language",
+                  fontSize = 13.sp,
+                  fontWeight = FontWeight.SemiBold,
+                  color = BrandCharcoal
+                )
+                Text(
+                  text = if (currentLanguage == AppLanguage.ID) "Pilih bahasa antarmuka aplikasi" else "Choose application interface language",
+                  fontSize = 11.sp,
+                  color = BrandSecondary
+                )
+              }
+            }
+            LanguageSwitchPill(
+              currentLanguage = currentLanguage,
+              onLanguageSelected = onLanguageSelected
+            )
+          }
         }
       }
     }
@@ -510,7 +582,7 @@ fun ProfileScreen(
             )
             Spacer(modifier = Modifier.width(10.dp))
             Text(
-              text = "Sign Out & Switch Account",
+              text = if (currentLanguage == AppLanguage.ID) "Keluar Akun" else "Sign Out & Switch Account",
               fontSize = 14.sp,
               fontWeight = FontWeight.Medium,
               color = BrandTerracotta
@@ -526,6 +598,7 @@ fun ProfileScreen(
       }
     }
   }
+}
 }
 
 @Composable

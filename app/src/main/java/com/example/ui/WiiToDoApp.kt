@@ -1,10 +1,16 @@
 package com.example.ui
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -105,6 +111,8 @@ fun WiiToDoApp(
     }
   }
 
+  val currentLanguage by viewModel.currentLanguage.collectAsState()
+
   val isPrimaryTab = destination is AppDestination.Home ||
     destination is AppDestination.Schedule ||
     destination is AppDestination.Projects ||
@@ -134,7 +142,8 @@ fun WiiToDoApp(
                 NavigationTab.PROFILE -> viewModel.navigateTo(AppDestination.Profile)
               }
             },
-            onAddClick = { showAddTaskBottomSheet = true }
+            onAddClick = { showAddTaskBottomSheet = true },
+            currentLanguage = currentLanguage
           )
         }
       }
@@ -144,7 +153,19 @@ fun WiiToDoApp(
           .fillMaxSize()
           .padding(innerPadding)
       ) {
-        when (val currentDest = destination) {
+        AnimatedContent(
+          targetState = destination,
+          transitionSpec = {
+            (fadeIn(animationSpec = tween(220, delayMillis = 40)) +
+              slideInHorizontally(animationSpec = tween(260, easing = FastOutSlowInEasing)) { fullWidth -> (fullWidth * 0.12f).toInt() })
+              .togetherWith(
+                fadeOut(animationSpec = tween(180)) +
+                  slideOutHorizontally(animationSpec = tween(220, easing = FastOutSlowInEasing)) { fullWidth -> -(fullWidth * 0.12f).toInt() }
+              )
+          },
+          label = "screen_navigation_transition"
+        ) { currentDest ->
+          when (currentDest) {
           AppDestination.Home -> {
             HomeScreen(
               tasks = tasks,
@@ -163,7 +184,9 @@ fun WiiToDoApp(
               userName = userProfile.name.split(" ").firstOrNull() ?: "Alwi",
               onDeleteTask = { id -> viewModel.deleteTask(id) },
               userProfile = userProfile,
-              onMilestoneClick = { viewModel.navigateTo(AppDestination.MilestoneJourney) }
+              onMilestoneClick = { viewModel.navigateTo(AppDestination.MilestoneJourney) },
+              currentLanguage = currentLanguage,
+              onLanguageSelected = { viewModel.setLanguage(it) }
             )
           }
 
@@ -206,8 +229,10 @@ fun WiiToDoApp(
               onToggleMorningBriefing = { viewModel.toggleMorningBriefing() },
               onToggleAutoFocus = { viewModel.toggleAutoFocusMode() },
               onViewLevelCelebration = { viewModel.triggerLevelUpModal() },
-              onSignOut = { viewModel.navigateTo(AppDestination.Onboarding) },
-              onOpenMilestoneJourney = { viewModel.navigateTo(AppDestination.MilestoneJourney) }
+              onSignOut = { viewModel.signOut() },
+              onOpenMilestoneJourney = { viewModel.navigateTo(AppDestination.MilestoneJourney) },
+              currentLanguage = currentLanguage,
+              onLanguageSelected = { viewModel.setLanguage(it) }
             )
           }
 
@@ -323,9 +348,13 @@ fun WiiToDoApp(
 
           AppDestination.Onboarding -> {
             OnboardingScreen(
-              onGetStarted = { viewModel.navigateTo(AppDestination.Home) },
+              onGetStarted = {
+                viewModel.setLoggedIn(true)
+                viewModel.navigateTo(AppDestination.Home)
+              },
               onSignInClick = { viewModel.navigateTo(AppDestination.Login) },
               onGuestSignIn = {
+                viewModel.setLoggedIn(true)
                 viewModel.updateProfile("Guest Scholar", "guest@wiitodo.app", "Offline Focus Workspace")
                 viewModel.navigateTo(AppDestination.Home)
               }
@@ -335,13 +364,18 @@ fun WiiToDoApp(
           AppDestination.Login -> {
             SignInScreen(
               onBackClick = { viewModel.navigateTo(AppDestination.Onboarding) },
-              onSignInSuccess = { viewModel.navigateTo(AppDestination.Home) },
+              onSignInSuccess = {
+                viewModel.setLoggedIn(true)
+                viewModel.navigateTo(AppDestination.Home)
+              },
               onSignUpClick = { viewModel.navigateTo(AppDestination.SignUp) },
               onGoogleSignIn = {
+                viewModel.setLoggedIn(true)
                 viewModel.updateProfile("Alwi Pratama (Google)", "alwi.student@university.edu", "Informatics Engineering • Year 3")
                 viewModel.navigateTo(AppDestination.Home)
               },
               onGuestSignIn = {
+                viewModel.setLoggedIn(true)
                 viewModel.updateProfile("Guest Scholar", "guest@wiitodo.app", "Offline Focus Workspace")
                 viewModel.navigateTo(AppDestination.Home)
               }
@@ -352,14 +386,17 @@ fun WiiToDoApp(
             SignUpScreen(
               onBackClick = { viewModel.navigateTo(AppDestination.Login) },
               onSignUpSuccess = { name, email, program ->
+                viewModel.setLoggedIn(true)
                 viewModel.updateProfile(name, email, program)
                 viewModel.navigateTo(AppDestination.Home)
               },
               onGoogleSignIn = {
+                viewModel.setLoggedIn(true)
                 viewModel.updateProfile("Alwi Pratama (Google)", "alwi.student@university.edu", "Informatics Engineering • Year 3")
                 viewModel.navigateTo(AppDestination.Home)
               },
               onGuestSignIn = {
+                viewModel.setLoggedIn(true)
                 viewModel.updateProfile("Guest Scholar", "guest@wiitodo.app", "Offline Focus Workspace")
                 viewModel.navigateTo(AppDestination.Home)
               }
@@ -384,6 +421,7 @@ fun WiiToDoApp(
           }
         }
       }
+    }
     }
 
     // Modal Sheet 1: Add Subtask

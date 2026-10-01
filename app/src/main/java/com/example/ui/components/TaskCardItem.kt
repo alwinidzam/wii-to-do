@@ -4,6 +4,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -16,6 +19,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -191,7 +195,15 @@ private fun TaskCardContent(
           horizontalArrangement = Arrangement.spacedBy(14.dp),
           verticalAlignment = Alignment.Top
         ) {
-          // Architectural Checkbox
+          // Architectural Checkbox with tactile spring bounce & 36dp touch target
+          val checkboxScale by animateFloatAsState(
+            targetValue = if (isDone) 1.15f else 1.0f,
+            animationSpec = spring(
+              dampingRatio = Spring.DampingRatioMediumBouncy,
+              stiffness = Spring.StiffnessLow
+            ),
+            label = "checkbox_spring"
+          )
           val checkboxBg by animateColorAsState(
             targetValue = if (isDone) BrandCharcoal else Color.Transparent,
             animationSpec = tween(durationMillis = 150)
@@ -204,31 +216,44 @@ private fun TaskCardContent(
           Box(
             modifier = Modifier
               .testTag("task_checkbox_${task.id}")
-              .padding(top = 2.dp)
-              .size(20.dp)
-              .clip(RoundedCornerShape(6.dp))
-              .background(checkboxBg)
-              .clickable { onToggleComplete() }
-              .then(
-                if (!isDone) Modifier.background(Color.White, RoundedCornerShape(6.dp))
-                else Modifier
-              ),
+              .size(36.dp)
+              .clip(RoundedCornerShape(8.dp))
+              .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onToggleComplete()
+              },
             contentAlignment = Alignment.Center
           ) {
-            Surface(
-              modifier = Modifier.fillMaxSize(),
-              shape = RoundedCornerShape(6.dp),
-              color = checkboxBg,
-              border = BorderStroke(2.dp, checkboxBorderColor)
+            Box(
+              modifier = Modifier
+                .size(22.dp)
+                .graphicsLayer {
+                  scaleX = checkboxScale
+                  scaleY = checkboxScale
+                }
+                .clip(RoundedCornerShape(6.dp))
+                .background(checkboxBg)
+                .then(
+                  if (!isDone) Modifier.background(Color.White, RoundedCornerShape(6.dp))
+                  else Modifier
+                ),
+              contentAlignment = Alignment.Center
             ) {
-              if (isDone) {
-                Box(contentAlignment = Alignment.Center) {
-                  Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = "Completed",
-                    tint = Color.White,
-                    modifier = Modifier.size(13.dp)
-                  )
+              Surface(
+                modifier = Modifier.fillMaxSize(),
+                shape = RoundedCornerShape(6.dp),
+                color = checkboxBg,
+                border = BorderStroke(2.dp, checkboxBorderColor)
+              ) {
+                if (isDone) {
+                  Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                      imageVector = Icons.Default.Check,
+                      contentDescription = "Completed",
+                      tint = Color.White,
+                      modifier = Modifier.size(14.dp)
+                    )
+                  }
                 }
               }
             }
@@ -247,13 +272,13 @@ private fun TaskCardContent(
               overflow = TextOverflow.Ellipsis
             )
 
-            // Metadata & Tags Row
-            Row(
+            // Responsive FlowRow for Tags (wraps cleanly on mobile without clipping)
+            FlowRow(
               modifier = Modifier
                 .padding(top = 8.dp)
                 .fillMaxWidth(),
-              verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(8.dp)
+              horizontalArrangement = Arrangement.spacedBy(6.dp),
+              verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
               // Category Tag
               Surface(

@@ -15,6 +15,7 @@ import com.example.ui.audio.FocusAudioEngine
 import com.example.ui.components.getTodayIndex
 import com.example.data.ai.GeminiTaskBreakdownService
 import com.example.data.model.SubTask
+import com.example.ui.i18n.AppLanguage
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,8 +57,29 @@ class ToDoViewModel(
   val showLevelUpModal: StateFlow<Boolean> = repository.showLevelUpModal
   val shareCardConfig: StateFlow<ShareCardConfig> = repository.shareCardConfig
 
-  private val _currentDestination = MutableStateFlow<AppDestination>(AppDestination.Home)
+  private val _currentDestination = MutableStateFlow<AppDestination>(
+    if (repository.isUserLoggedIn()) AppDestination.Home else AppDestination.Onboarding
+  )
   val currentDestination: StateFlow<AppDestination> = _currentDestination.asStateFlow()
+
+  fun setLoggedIn(loggedIn: Boolean) {
+    repository.setUserLoggedIn(loggedIn)
+  }
+
+  fun signOut() {
+    repository.setUserLoggedIn(false)
+    _currentDestination.value = AppDestination.Onboarding
+  }
+
+  private val _currentLanguage = MutableStateFlow<AppLanguage>(
+    if (repository.getAppLanguage() == "en") AppLanguage.EN else AppLanguage.ID
+  )
+  val currentLanguage: StateFlow<AppLanguage> = _currentLanguage.asStateFlow()
+
+  fun setLanguage(lang: AppLanguage) {
+    _currentLanguage.value = lang
+    repository.setAppLanguage(lang.code)
+  }
 
   private val _homeCategoryFilter = MutableStateFlow("All")
   val homeCategoryFilter: StateFlow<String> = _homeCategoryFilter.asStateFlow()

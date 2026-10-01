@@ -54,16 +54,24 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.i18n.AppLanguage
 import com.example.ui.theme.BrandBorder
 import com.example.ui.theme.BrandCharcoal
 import com.example.ui.theme.BrandSecondary
 import com.example.ui.theme.BrandTerracotta
 
-enum class NavigationTab(val label: String, val activeIcon: ImageVector, val inactiveIcon: ImageVector) {
-  HOME("Home", Icons.Filled.Home, Icons.Outlined.Home),
-  SCHEDULE("Schedule", Icons.Outlined.CalendarToday, Icons.Outlined.CalendarToday),
-  PROJECTS("Projects", Icons.Outlined.Folder, Icons.Outlined.Folder),
-  PROFILE("Profile", Icons.Outlined.Person, Icons.Outlined.Person)
+enum class NavigationTab(
+  val idLabel: String,
+  val enLabel: String,
+  val activeIcon: ImageVector,
+  val inactiveIcon: ImageVector
+) {
+  HOME("Beranda", "Home", Icons.Filled.Home, Icons.Outlined.Home),
+  SCHEDULE("Jadwal", "Schedule", Icons.Outlined.CalendarToday, Icons.Outlined.CalendarToday),
+  PROJECTS("Proyek", "Projects", Icons.Outlined.Folder, Icons.Outlined.Folder),
+  PROFILE("Profil", "Profile", Icons.Outlined.Person, Icons.Outlined.Person);
+
+  fun getLabel(lang: AppLanguage): String = if (lang == AppLanguage.ID) idLabel else enLabel
 }
 
 /**
@@ -79,7 +87,8 @@ fun BottomDockNavigation(
   currentTab: NavigationTab,
   onTabSelected: (NavigationTab) -> Unit,
   onAddClick: () -> Unit,
-  modifier: Modifier = Modifier
+  modifier: Modifier = Modifier,
+  currentLanguage: AppLanguage = AppLanguage.ID
 ) {
   val haptic = LocalHapticFeedback.current
   val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -164,13 +173,13 @@ fun BottomDockNavigation(
                 ) {
                   Icon(
                     imageVector = tab.activeIcon,
-                    contentDescription = tab.label,
+                    contentDescription = tab.getLabel(currentLanguage),
                     tint = Color.White,
                     modifier = Modifier.size(18.dp)
                   )
                   Spacer(modifier = Modifier.width(6.dp))
                   Text(
-                    text = tab.label,
+                    text = tab.getLabel(currentLanguage),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White,
@@ -200,7 +209,7 @@ fun BottomDockNavigation(
               ) {
                 Icon(
                   imageVector = tab.inactiveIcon,
-                  contentDescription = tab.label,
+                  contentDescription = tab.getLabel(currentLanguage),
                   tint = BrandSecondary,
                   modifier = Modifier.size(18.dp)
                 )

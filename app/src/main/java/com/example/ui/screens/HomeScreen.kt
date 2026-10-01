@@ -78,6 +78,9 @@ import com.example.ui.components.DateStripSelector
 import com.example.ui.components.TaskCardItem
 import com.example.ui.components.WiiBrandLogo
 import com.example.ui.components.getTodayIndex
+import com.example.ui.i18n.AppLanguage
+import com.example.ui.i18n.LanguageSwitchPill
+import com.example.ui.i18n.Translations
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -94,20 +97,6 @@ import com.example.ui.theme.BrandOliveBorder
 import com.example.ui.theme.BrandSecondary
 import com.example.ui.theme.BrandTerracotta
 
-/**
- * Super High-End HomeScreen:
- * 1. App Header: Monogram + "WII To-Do" / "FOCUS WORKSPACE", Notification bell with terracotta unread dot, AP avatar with olive status
- * 2. Date & Greeting: Dynamic real-time date + tasks badge | "Good morning, Alwi"
- * 3. Architectural Milestone Banner ("Architect of Focus") with live tier progress and share trigger
- * 4. Daily Progress Pulse Card: Minimalist high-craft card showing completed ratio and micro-bar
- * 5. Micro Search Bar: Full width, search icon, "Search tasks, tags, or projects...", "⌘K" shortcut chip, instant clear
- * 6. Horizontal 7-Day Date Carousel: Tactile week strip with spring physics
- * 7. Category Filter Pills with Counter Tags: Animated selection with spring feedback
- * 8. Section Header: Charcoal dot + "TODAY'S TASKS" + "$totalRemaining remaining"
- * 9. Task list: Cards with custom checkboxes, category badges, time tags, high priority pills, urgency tags, progress bars, and priority dots
- * 10. Bespoke Empty State: Elegant illustration & helpful reset action
- * 11. Footer: Dash divider + "That's everything for today"
- */
 @Composable
 fun HomeScreen(
   tasks: List<TaskItem>,
@@ -124,7 +113,9 @@ fun HomeScreen(
   userName: String = "Alwi",
   onDeleteTask: (String) -> Unit = {},
   userProfile: UserProfile? = null,
-  onMilestoneClick: () -> Unit = {}
+  onMilestoneClick: () -> Unit = {},
+  currentLanguage: AppLanguage = AppLanguage.ID,
+  onLanguageSelected: (AppLanguage) -> Unit = {}
 ) {
   val haptic = LocalHapticFeedback.current
   val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -157,11 +148,19 @@ fun HomeScreen(
   val countWork = tasks.count { it.category.equals("Work", ignoreCase = true) }
   val countPersonal = tasks.count { it.category.equals("Personal", ignoreCase = true) }
 
+  val strings = remember(currentLanguage) { Translations.get(currentLanguage) }
+
+  // Category counts
+  val countAll = tasks.size
+  val countCollege = tasks.count { it.category.equals("College", ignoreCase = true) }
+  val countWork = tasks.count { it.category.equals("Work", ignoreCase = true) }
+  val countPersonal = tasks.count { it.category.equals("Personal", ignoreCase = true) }
+
   val categories = listOf(
-    Pair("All", countAll),
-    Pair("College", countCollege),
-    Pair("Work", countWork),
-    Pair("Personal", countPersonal)
+    Triple("All", countAll, strings.categoryAll),
+    Triple("College", countCollege, strings.categoryCollege),
+    Triple("Work", countWork, strings.categoryWork),
+    Triple("Personal", countPersonal, strings.categoryPersonal)
   )
 
   // Overall completion progress
@@ -170,23 +169,25 @@ fun HomeScreen(
   val progressFraction = if (totalTasks > 0) completedCount.toFloat() / totalTasks.toFloat() else 0f
   val progressPercent = (progressFraction * 100).toInt()
 
-  LazyColumn(
+  Column(
     modifier = modifier
       .fillMaxSize()
       .background(BrandCanvas)
-      .padding(horizontal = 20.dp),
-    contentPadding = PaddingValues(
-      top = topInset + 12.dp,
-      bottom = 140.dp // Ensures navbar and FAB NEVER cover tasks
-    ),
-    verticalArrangement = Arrangement.spacedBy(14.dp)
   ) {
-    // 1. App Header
-    item {
+    // 1. Fixed App Header (Pinned at top, does not scroll)
+    Surface(
+      modifier = Modifier.fillMaxWidth(),
+      color = BrandCanvas
+    ) {
       Row(
         modifier = Modifier
           .fillMaxWidth()
-          .padding(top = 4.dp, bottom = 2.dp),
+          .padding(
+            start = 20.dp,
+            end = 20.dp,
+            top = topInset + 12.dp,
+            bottom = 8.dp
+          ),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
       ) {
@@ -216,11 +217,16 @@ fun HomeScreen(
           }
         }
 
-        // Quick Actions: Notification bell + AP Avatar
+        // Quick Actions: Language Switcher + Notification bell + AP Avatar
         Row(
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+          // Language Switcher [ ID | EN ]
+          LanguageSwitchPill(
+            currentLanguage = currentLanguage,
+            onLanguageSelected = onLanguageSelected
+          )
           // Notification Bell Button
           Surface(
             modifier = Modifier
@@ -291,15 +297,38 @@ fun HomeScreen(
       }
     }
 
-    // 2. Date & Greeting Header
-    item {
-      val dayHeader = remember(selectedDayIndex) {
+    // Scrollable Task and Timeline Feed
+    LazyColumn(
+      modifier = Modifier
+        .fillMaxSize()
+        .padding(horizontal = 20.dp),
+      contentPadding = PaddingValues(
+        top = 4.dp,
+        bottom = 140.dp // Ensures navbar and FAB NEVER cover tasks
+      ),
+      verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+      // 2. Date & Greeting Header
+      item {
+      val locale = remember(currentLanguage) {
+        if (currentLanguage == AppLanguage.ID) Locale("id", "ID") else Locale.ENGLISH
+      }
+      val dayHeader = remember(selectedDayIndex, currentLanguage) {
         val calendar = Calendar.getInstance()
         val currentDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
         val daysFromMonday = if (currentDayOfWeek == Calendar.SUNDAY) 6 else currentDayOfWeek - Calendar.MONDAY
         calendar.add(Calendar.DAY_OF_YEAR, -daysFromMonday + selectedDayIndex)
-        val sdf = SimpleDateFormat("EEEE, MMM d", Locale.ENGLISH)
+        val sdf = SimpleDateFormat("EEEE, MMM d", locale)
         sdf.format(calendar.time).uppercase()
+      }
+      val greeting = remember(currentLanguage) {
+        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        when {
+          hour < 12 -> strings.greetingMorning
+          hour < 15 -> strings.greetingAfternoon
+          hour < 18 -> strings.greetingEvening
+          else -> strings.greetingNight
+        }
       }
 
       Column(
@@ -338,7 +367,7 @@ fun HomeScreen(
                   .background(BrandOlive, CircleShape)
               )
               Text(
-                text = "$totalRemaining tasks",
+                text = "$totalRemaining ${strings.tasksTodayBadge}",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
                 color = BrandOlive
@@ -348,7 +377,7 @@ fun HomeScreen(
         }
 
         Text(
-          text = "Good day, $userName",
+          text = "$greeting, $userName",
           fontSize = 24.sp,
           fontWeight = FontWeight.Bold,
           color = BrandCharcoal,
@@ -577,7 +606,7 @@ fun HomeScreen(
             onValueChange = onSearchQueryChanged,
             placeholder = {
               Text(
-                text = "Search tasks, tags, or projects...",
+                text = strings.searchPlaceholder,
                 fontSize = 12.sp,
                 color = BrandSecondary.copy(alpha = 0.6f)
               )
@@ -646,8 +675,8 @@ fun HomeScreen(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
       ) {
-        categories.forEach { (cat, count) ->
-          val isSelected = (cat == selectedCategory)
+        categories.forEach { (catId, count, label) ->
+          val isSelected = (catId == selectedCategory)
           val interactionSource = remember { MutableInteractionSource() }
           val isPressed by interactionSource.collectIsPressedAsState()
           val scale by animateFloatAsState(
@@ -658,7 +687,7 @@ fun HomeScreen(
 
           Surface(
             modifier = Modifier
-              .testTag("filter_chip_${cat.lowercase()}")
+              .testTag("filter_chip_${catId.lowercase()}")
               .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
@@ -669,7 +698,7 @@ fun HomeScreen(
                 indication = null
               ) {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                onCategorySelected(cat)
+                onCategorySelected(catId)
               },
             shape = RoundedCornerShape(20.dp),
             color = if (isSelected) BrandCharcoal else Color.White,
@@ -682,7 +711,7 @@ fun HomeScreen(
               horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
               Text(
-                text = cat,
+                text = label,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 color = if (isSelected) Color.White else BrandSecondary
@@ -727,7 +756,7 @@ fun HomeScreen(
               .background(BrandCharcoal, CircleShape)
           )
           Text(
-            text = "TODAY'S TASKS",
+            text = strings.todaysTasks,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             color = BrandCharcoal,
@@ -736,7 +765,7 @@ fun HomeScreen(
         }
 
         Text(
-          text = "$totalRemaining remaining",
+          text = "$totalRemaining ${strings.remaining}",
           fontSize = 12.sp,
           fontWeight = FontWeight.Medium,
           color = BrandSecondary
@@ -811,7 +840,7 @@ fun HomeScreen(
                 )
               ) {
                 Text(
-                  text = "Reset filters",
+                  text = strings.resetFilters,
                   fontSize = 12.sp,
                   fontWeight = FontWeight.Medium
                 )
@@ -853,7 +882,7 @@ fun HomeScreen(
                 .background(BrandSecondary.copy(alpha = 0.5f), CircleShape)
             )
             Text(
-              text = "COMPLETED (${completedTasks.size})",
+              text = "${strings.completed} (${completedTasks.size})",
               fontSize = 11.sp,
               fontWeight = FontWeight.SemiBold,
               color = BrandSecondary,
@@ -894,7 +923,7 @@ fun HomeScreen(
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
-          text = "That's everything for today",
+          text = strings.footerDone,
           fontSize = 12.sp,
           color = BrandSecondary.copy(alpha = 0.8f)
         )
@@ -902,3 +931,6 @@ fun HomeScreen(
     }
   }
 }
+}
+
+
