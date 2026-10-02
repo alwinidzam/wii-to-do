@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -204,12 +205,12 @@ fun AddTaskBottomSheet(
         )
       }
     },
-    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-    windowInsets = WindowInsets.ime
+    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
   ) {
     Column(
       modifier = modifier
         .fillMaxWidth()
+        .imePadding()
         .padding(start = 20.dp, end = 20.dp, bottom = 18.dp)
         .verticalScroll(rememberScrollState()),
       verticalArrangement = Arrangement.spacedBy(12.dp)
