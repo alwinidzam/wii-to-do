@@ -60,6 +60,9 @@ interface ProjectDao {
 
   @Query("SELECT COUNT(*) FROM projects")
   suspend fun getProjectCount(): Int
+
+  @Query("DELETE FROM projects")
+  suspend fun deleteAllProjects()
 }
 
 @Dao
@@ -81,6 +84,9 @@ interface ScheduleDao {
 
   @Query("SELECT COUNT(*) FROM schedules")
   suspend fun getScheduleCount(): Int
+
+  @Query("DELETE FROM schedules")
+  suspend fun deleteAllSchedules()
 }
 
 @Dao

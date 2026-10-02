@@ -133,14 +133,14 @@ fun ScheduleScreen(
           WiiBrandLogo(size = 30.dp)
           Column {
             Text(
-              text = "WII To-Do",
+              text = "wii to do",
               fontSize = 16.sp,
               fontWeight = FontWeight.Bold,
               color = BrandCharcoal,
               letterSpacing = (-0.02).sp
             )
             Text(
-              text = "SCHEDULE & TIMELINE",
+              text = "schedule",
               fontSize = 10.sp,
               color = BrandSecondary,
               fontWeight = FontWeight.Medium,

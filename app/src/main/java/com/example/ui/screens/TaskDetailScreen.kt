@@ -95,6 +95,7 @@ fun TaskDetailScreen(
 ) {
   val haptic = LocalHapticFeedback.current
   val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+  val bottomInset = androidx.compose.foundation.layout.WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
   LazyColumn(
     modifier = modifier
@@ -103,7 +104,7 @@ fun TaskDetailScreen(
       .padding(horizontal = 20.dp),
     contentPadding = androidx.compose.foundation.layout.PaddingValues(
       top = topInset + 12.dp,
-      bottom = 50.dp
+      bottom = 40.dp + bottomInset
     ),
     verticalArrangement = Arrangement.spacedBy(16.dp)
   ) {

@@ -71,6 +71,7 @@ import com.example.ui.sheets.AddTaskBottomSheet
 import com.example.ui.sheets.ScheduleBookingSheet
 import com.example.ui.theme.OliveSecondary
 import com.example.ui.theme.OliveSecondaryContainer
+import androidx.activity.compose.BackHandler
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -78,6 +79,10 @@ import kotlinx.coroutines.launch
 fun WiiToDoApp(
   viewModel: ToDoViewModel = viewModel()
 ) {
+  BackHandler(enabled = viewModel.canNavigateBack) {
+    viewModel.navigateBack()
+  }
+
   val destination by viewModel.currentDestination.collectAsState()
   val tasks by viewModel.tasks.collectAsState()
   val projects by viewModel.projects.collectAsState()
@@ -346,56 +351,48 @@ fun WiiToDoApp(
           AppDestination.Onboarding -> {
             OnboardingScreen(
               onGetStarted = {
-                viewModel.setLoggedIn(true)
-                viewModel.navigateTo(AppDestination.Home)
+                viewModel.navigateTo(AppDestination.SignUp)
               },
               onSignInClick = { viewModel.navigateTo(AppDestination.Login) },
               onGuestSignIn = {
-                viewModel.setLoggedIn(true)
-                viewModel.updateProfile("Guest Scholar", "guest@wiitodo.app", "Offline Focus Workspace")
-                viewModel.navigateTo(AppDestination.Home)
+                viewModel.loginAsFreshUser("Guest Scholar", "guest@wiitodo.app", "Offline Focus Workspace")
+              },
+              onDeveloperLogin = {
+                viewModel.loginAsDeveloper()
               }
             )
           }
 
           AppDestination.Login -> {
             SignInScreen(
-              onBackClick = { viewModel.navigateTo(AppDestination.Onboarding) },
+              onBackClick = { viewModel.navigateBack() },
               onSignInSuccess = {
-                viewModel.setLoggedIn(true)
-                viewModel.navigateTo(AppDestination.Home)
+                viewModel.loginAsFreshUser("Alwi Pratama", "alwi.student@university.edu", "Informatics Engineering • Year 3")
               },
               onSignUpClick = { viewModel.navigateTo(AppDestination.SignUp) },
               onGoogleSignIn = {
-                viewModel.setLoggedIn(true)
-                viewModel.updateProfile("Alwi Pratama (Google)", "alwi.student@university.edu", "Informatics Engineering • Year 3")
-                viewModel.navigateTo(AppDestination.Home)
+                viewModel.loginAsFreshUser("Alwi Pratama (Google)", "alwi.student@university.edu", "Informatics Engineering • Year 3")
               },
               onGuestSignIn = {
-                viewModel.setLoggedIn(true)
-                viewModel.updateProfile("Guest Scholar", "guest@wiitodo.app", "Offline Focus Workspace")
-                viewModel.navigateTo(AppDestination.Home)
+                viewModel.loginAsFreshUser("Guest Scholar", "guest@wiitodo.app", "Offline Focus Workspace")
+              },
+              onDeveloperLogin = {
+                viewModel.loginAsDeveloper()
               }
             )
           }
 
           AppDestination.SignUp -> {
             SignUpScreen(
-              onBackClick = { viewModel.navigateTo(AppDestination.Login) },
+              onBackClick = { viewModel.navigateBack() },
               onSignUpSuccess = { name, email, program ->
-                viewModel.setLoggedIn(true)
-                viewModel.updateProfile(name, email, program)
-                viewModel.navigateTo(AppDestination.Home)
+                viewModel.loginAsFreshUser(name, email, program)
               },
               onGoogleSignIn = {
-                viewModel.setLoggedIn(true)
-                viewModel.updateProfile("Alwi Pratama (Google)", "alwi.student@university.edu", "Informatics Engineering • Year 3")
-                viewModel.navigateTo(AppDestination.Home)
+                viewModel.loginAsFreshUser("Alwi Pratama (Google)", "alwi.student@university.edu", "Informatics Engineering • Year 3")
               },
               onGuestSignIn = {
-                viewModel.setLoggedIn(true)
-                viewModel.updateProfile("Guest Scholar", "guest@wiitodo.app", "Offline Focus Workspace")
-                viewModel.navigateTo(AppDestination.Home)
+                viewModel.loginAsFreshUser("Guest Scholar", "guest@wiitodo.app", "Offline Focus Workspace")
               }
             )
           }

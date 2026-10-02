@@ -107,7 +107,7 @@ fun SocialShareStudioScreen(
 
   fun shareToExternal() {
     val shareText = """
-      🏛️ WII To-Do • Focus Milestone Achieved!
+      🏛️ wii to do • Focus Milestone Achieved!
       
       Tier: ${currentTier.title} (${currentTier.badgeCode})
       Total XP: ${userProfile.totalXpAllTime} XP • Level ${userProfile.level}
@@ -115,7 +115,7 @@ fun SocialShareStudioScreen(
       Focus Logged: ${userProfile.focusHoursLogged}
       Motto: “${config.customQuote}”
       
-      Crafted with WII To-Do Minimalist Architecture.
+      Crafted with wii to do Minimalist Architecture.
     """.trimIndent()
 
     val sendIntent = Intent().apply {
@@ -289,7 +289,7 @@ fun SocialShareStudioScreen(
               ) {
                 WiiBrandLogo(size = 24.dp)
                 Text(
-                  text = "WII TO-DO",
+                  text = "wii to do",
                   fontSize = 12.sp,
                   fontWeight = FontWeight.Bold,
                   color = textPrimary,

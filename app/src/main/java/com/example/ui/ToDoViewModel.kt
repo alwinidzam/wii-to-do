@@ -65,8 +65,25 @@ class ToDoViewModel(
     repository.setUserLoggedIn(loggedIn)
   }
 
+  fun loginAsDeveloper() {
+    _navigationStack.clear()
+    repository.loginAsDeveloper()
+    _currentDestination.value = AppDestination.Home
+  }
+
+  fun loginAsFreshUser(
+    name: String = "Alwi",
+    email: String = "user@wiitodo.app",
+    program: String = "Personal Workspace"
+  ) {
+    _navigationStack.clear()
+    repository.loginAsFreshUser(name, email, program)
+    _currentDestination.value = AppDestination.Home
+  }
+
   fun signOut() {
-    repository.setUserLoggedIn(false)
+    _navigationStack.clear()
+    repository.signOutUser()
     _currentDestination.value = AppDestination.Onboarding
   }
 
@@ -97,37 +114,43 @@ class ToDoViewModel(
 
   private var timerJob: Job? = null
 
-  private var previousTab: AppDestination = AppDestination.Home
+  private val _navigationStack = mutableListOf<AppDestination>()
+
+  val canNavigateBack: Boolean
+    get() {
+      val curr = _currentDestination.value
+      if (_navigationStack.isNotEmpty()) return true
+      return curr !is AppDestination.Home && curr !is AppDestination.Onboarding
+    }
 
   init {
     startTimerTicker()
   }
 
   fun navigateTo(destination: AppDestination) {
-    if (_currentDestination.value is AppDestination.Home ||
-        _currentDestination.value is AppDestination.Schedule ||
-        _currentDestination.value is AppDestination.Projects ||
-        _currentDestination.value is AppDestination.Profile) {
-      previousTab = _currentDestination.value
-    }
+    if (_currentDestination.value == destination) return
+    _navigationStack.add(_currentDestination.value)
     _currentDestination.value = destination
   }
 
-  fun navigateBack() {
-    _currentDestination.value = when (_currentDestination.value) {
-      is AppDestination.TaskDetail,
-      is AppDestination.CreateTask,
-      is AppDestination.AddSubTask,
-      is AppDestination.ScheduleBooking,
-      is AppDestination.FocusSetup,
-      is AppDestination.ActiveFocus,
-      is AppDestination.FocusSummary,
-      is AppDestination.MilestoneJourney,
-      is AppDestination.ShareStudio -> previousTab
-      is AppDestination.Login,
-      is AppDestination.SignUp -> AppDestination.Onboarding
-      else -> AppDestination.Home
+  fun navigateBack(): Boolean {
+    if (_navigationStack.isNotEmpty()) {
+      val prev = _navigationStack.removeAt(_navigationStack.size - 1)
+      _currentDestination.value = prev
+      return true
     }
+    if (_currentDestination.value is AppDestination.Schedule ||
+        _currentDestination.value is AppDestination.Projects ||
+        _currentDestination.value is AppDestination.Profile) {
+      _currentDestination.value = AppDestination.Home
+      return true
+    }
+    if (_currentDestination.value is AppDestination.Login ||
+        _currentDestination.value is AppDestination.SignUp) {
+      _currentDestination.value = AppDestination.Onboarding
+      return true
+    }
+    return false
   }
 
   fun updateShareCardConfig(config: ShareCardConfig) {

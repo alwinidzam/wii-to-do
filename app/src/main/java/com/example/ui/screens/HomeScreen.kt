@@ -193,7 +193,7 @@ fun HomeScreen(
           WiiBrandLogo(size = 32.dp)
           Column {
             Text(
-              text = "WII To-Do",
+              text = strings.appName,
               fontSize = 16.sp,
               fontWeight = FontWeight.Bold,
               color = BrandCharcoal,
@@ -201,7 +201,7 @@ fun HomeScreen(
               lineHeight = 18.sp
             )
             Text(
-              text = "FOCUS WORKSPACE",
+              text = strings.workspaceSubtitle,
               fontSize = 10.sp,
               fontWeight = FontWeight.Medium,
               color = BrandSecondary,
@@ -690,19 +690,29 @@ fun HomeScreen(
               )
             }
 
+            val emptyTitle = when {
+              searchQuery.isNotBlank() -> if (currentLanguage == AppLanguage.ID) "Tidak ada tugas yang cocok" else "No matching tasks found"
+              selectedCategory != "All" -> if (currentLanguage == AppLanguage.ID) "Tidak ada tugas di kategori $selectedCategory" else "No tasks in $selectedCategory"
+              tasks.isEmpty() -> if (currentLanguage == AppLanguage.ID) "Belum ada tugas" else "No tasks yet"
+              else -> if (currentLanguage == AppLanguage.ID) "Semua tugas selesai!" else "All clear for today!"
+            }
+
+            val emptySubtitle = when {
+              searchQuery.isNotBlank() -> if (currentLanguage == AppLanguage.ID) "Coba cari dengan kata kunci lain atau hapus pencarian." else "Try searching for a different keyword or clear the search field."
+              selectedCategory != "All" -> if (currentLanguage == AppLanguage.ID) "Ganti kategori atau ketuk tombol + untuk menambahkan tugas." else "Switch categories or tap + to create a task in $selectedCategory."
+              tasks.isEmpty() -> if (currentLanguage == AppLanguage.ID) "Ruang fokus Anda masih bersih. Ketuk tombol + untuk menambahkan tugas pertama Anda." else "Your focus workspace is clean. Tap + below to add your first task."
+              else -> if (currentLanguage == AppLanguage.ID) "Kerja bagus! Anda telah menyelesaikan seluruh komitmen hari ini." else "Great work! You have completed all scheduled commitments."
+            }
+
             Text(
-              text = if (searchQuery.isNotBlank()) "No matching tasks found"
-              else if (selectedCategory != "All") "No tasks in $selectedCategory"
-              else "All clear for today!",
+              text = emptyTitle,
               fontSize = 15.sp,
               fontWeight = FontWeight.SemiBold,
               color = BrandCharcoal
             )
 
             Text(
-              text = if (searchQuery.isNotBlank()) "Try searching for a different keyword or clear the search field."
-              else if (selectedCategory != "All") "Switch categories or tap + to create a task in $selectedCategory."
-              else "Great work! You have completed all scheduled commitments.",
+              text = emptySubtitle,
               fontSize = 12.sp,
               color = BrandSecondary,
               textAlign = androidx.compose.ui.text.style.TextAlign.Center,

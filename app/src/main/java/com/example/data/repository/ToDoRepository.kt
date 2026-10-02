@@ -91,14 +91,8 @@ class ToDoRepository private constructor(
     val dbInstance = db ?: return
     scope.launch {
       try {
-        if (dbInstance.taskDao().getTaskCount() == 0) {
-          dbInstance.taskDao().insertTasks(getInitialTasks().map { it.toEntity() })
-        }
         if (dbInstance.projectDao().getProjectCount() == 0) {
-          dbInstance.projectDao().insertProjects(getInitialProjects().map { it.toEntity() })
-        }
-        if (dbInstance.scheduleDao().getScheduleCount() == 0) {
-          dbInstance.scheduleDao().insertSchedules(getInitialSchedule().map { ScheduleItemToEntity(it) })
+          dbInstance.projectDao().insertProjects(getDefaultFreshProjects().map { it.toEntity() })
         }
         if (dbInstance.userProfileDao().getUserProfile() == null) {
           dbInstance.userProfileDao().insertOrUpdateProfile(UserProfile().toEntity())
@@ -106,26 +100,20 @@ class ToDoRepository private constructor(
 
         launch {
           dbInstance.taskDao().getAllTasksFlow().collect { entities ->
-            if (entities.isNotEmpty()) {
-              _tasks.value = entities.map { it.toModel() }
-              updateProjectTaskCounts()
-            }
+            _tasks.value = entities.map { it.toModel() }
+            updateProjectTaskCounts()
           }
         }
 
         launch {
           dbInstance.projectDao().getAllProjectsFlow().collect { entities ->
-            if (entities.isNotEmpty()) {
-              _projects.value = entities.map { it.toModel() }
-            }
+            _projects.value = entities.map { it.toModel() }
           }
         }
 
         launch {
           dbInstance.scheduleDao().getAllSchedulesFlow().collect { entities ->
-            if (entities.isNotEmpty()) {
-              _schedule.value = entities.map { it.toModel() }
-            }
+            _schedule.value = entities.map { it.toModel() }
           }
         }
 
@@ -142,29 +130,118 @@ class ToDoRepository private constructor(
     }
   }
 
-  private val _tasks = MutableStateFlow<List<TaskItem>>(getInitialTasks())
+  private fun getDefaultFreshProjects(): List<ProjectItem> = listOf(
+    ProjectItem(
+      id = "proj_inbox",
+      title = "Inbox",
+      description = "General tasks and quick thoughts",
+      category = "Personal",
+      code = "Personal",
+      dueDate = "Ongoing",
+      totalTasks = 0,
+      completedTasks = 0,
+      inProgressTasks = 0,
+      progress = 0f,
+      accentColor = "#2563EB"
+    )
+  )
+
+  fun loginAsDeveloper() {
+    setUserLoggedIn(true)
+    val devTasks = getInitialTasks()
+    val devProjects = getInitialProjects()
+    val devSchedule = getInitialSchedule()
+    val devProfile = UserProfile(
+      id = "default_user",
+      name = "Alwi Developer",
+      email = "developer@wiitodo.app",
+      program = "Lead Systems Architect • Level 5",
+      totalXpAllTime = 3850,
+      streakDays = 14,
+      currentStreak = 14,
+      hapticFeedbackEnabled = true,
+      calendarSyncEnabled = true
+    )
+
+    _tasks.value = devTasks
+    _projects.value = devProjects
+    _schedule.value = devSchedule
+    _userProfile.value = devProfile
+    _activeFocusSession.value = null
+    updateProjectTaskCounts()
+
+    scope.launch {
+      try {
+        val dbInstance = db ?: return@launch
+        dbInstance.taskDao().deleteAllTasks()
+        dbInstance.taskDao().insertTasks(devTasks.map { it.toEntity() })
+
+        dbInstance.projectDao().deleteAllProjects()
+        dbInstance.projectDao().insertProjects(devProjects.map { it.toEntity() })
+
+        dbInstance.scheduleDao().deleteAllSchedules()
+        dbInstance.scheduleDao().insertSchedules(devSchedule.map { ScheduleItemToEntity(it) })
+
+        dbInstance.userProfileDao().insertOrUpdateProfile(devProfile.toEntity())
+      } catch (_: Exception) {}
+    }
+  }
+
+  fun loginAsFreshUser(
+    name: String = "Alwi",
+    email: String = "user@wiitodo.app",
+    program: String = "Personal Workspace"
+  ) {
+    setUserLoggedIn(true)
+    val freshProjects = getDefaultFreshProjects()
+    val freshProfile = UserProfile(
+      id = "default_user",
+      name = name.ifBlank { "Alwi" },
+      email = email.ifBlank { "user@wiitodo.app" },
+      program = program.ifBlank { "Personal Workspace" },
+      totalXpAllTime = 0,
+      streakDays = 1,
+      currentStreak = 1,
+      hapticFeedbackEnabled = true,
+      calendarSyncEnabled = false
+    )
+
+    _tasks.value = emptyList()
+    _projects.value = freshProjects
+    _schedule.value = emptyList()
+    _userProfile.value = freshProfile
+    _activeFocusSession.value = null
+
+    scope.launch {
+      try {
+        val dbInstance = db ?: return@launch
+        dbInstance.taskDao().deleteAllTasks()
+        dbInstance.scheduleDao().deleteAllSchedules()
+        dbInstance.projectDao().deleteAllProjects()
+        dbInstance.projectDao().insertProjects(freshProjects.map { it.toEntity() })
+        dbInstance.userProfileDao().insertOrUpdateProfile(freshProfile.toEntity())
+      } catch (_: Exception) {}
+    }
+  }
+
+  fun signOutUser() {
+    setUserLoggedIn(false)
+    _activeFocusSession.value = null
+  }
+
+  private val _tasks = MutableStateFlow<List<TaskItem>>(emptyList())
   val tasks: StateFlow<List<TaskItem>> = _tasks.asStateFlow()
 
-  private val _projects = MutableStateFlow<List<ProjectItem>>(getInitialProjects())
+  private val _projects = MutableStateFlow<List<ProjectItem>>(getDefaultFreshProjects())
   val projects: StateFlow<List<ProjectItem>> = _projects.asStateFlow()
 
-  private val _schedule = MutableStateFlow<List<ScheduleCommitment>>(getInitialSchedule())
+  private val _schedule = MutableStateFlow<List<ScheduleCommitment>>(emptyList())
   val schedule: StateFlow<List<ScheduleCommitment>> = _schedule.asStateFlow()
 
   private val _userProfile = MutableStateFlow(UserProfile())
   val userProfile: StateFlow<UserProfile> = _userProfile.asStateFlow()
 
-  private val _activeFocusSession = MutableStateFlow<FocusSessionState?>(
-    FocusSessionState(
-      taskTitle = "Draft dark mode contrast matrix",
-      targetSubtask = "Define semantic token palette for inverted surfaces (dim, lowest, high)",
-      totalSeconds = 15 * 60,
-      remainingSeconds = 14 * 60 + 44,
-      isRunning = true,
-      soundscape = "Brown Noise Calm",
-      flowScore = 92
-    )
-  )
+  private val _activeFocusSession = MutableStateFlow<FocusSessionState?>(null)
   val activeFocusSession: StateFlow<FocusSessionState?> = _activeFocusSession.asStateFlow()
 
   private val _lastCompletedTaskCelebration = MutableStateFlow<TaskItem?>(null)

@@ -64,8 +64,8 @@ data class AppStrings(
 
 object Translations {
   val ID = AppStrings(
-    appName = "WII To-Do",
-    workspaceSubtitle = "FOCUS WORKSPACE",
+    appName = "wii to do",
+    workspaceSubtitle = "workspace",
     navHome = "Beranda",
     navSchedule = "Jadwal",
     navProjects = "Proyek",
@@ -86,20 +86,20 @@ object Translations {
     resetFilters = "Reset filter",
     emptyTasks = "Semua tugas hari ini selesai. Istirahatlah sejenak.",
     footerDone = "Semua tugas hari ini sudah tercatat",
-    scheduleTitle = "JADWAL & TIMELINE",
+    scheduleTitle = "jadwal",
     day = "Hari",
     week = "Minggu",
     commitments = "agenda",
-    projectsTitle = "PROYEK & WORKSPACE",
-    profileTitle = "PENGATURAN & PREFERENSI",
+    projectsTitle = "proyek",
+    profileTitle = "pengaturan",
     displayLanguage = "Bahasa Tampilan",
     displayLanguageSub = "Pilih bahasa antarmuka aplikasi",
     signOut = "Keluar Akun"
   )
 
   val EN = AppStrings(
-    appName = "WII To-Do",
-    workspaceSubtitle = "FOCUS WORKSPACE",
+    appName = "wii to do",
+    workspaceSubtitle = "workspace",
     navHome = "Home",
     navSchedule = "Schedule",
     navProjects = "Projects",
@@ -120,12 +120,12 @@ object Translations {
     resetFilters = "Reset filters",
     emptyTasks = "All tasks for today are completed. Take a breath.",
     footerDone = "That's everything for today",
-    scheduleTitle = "SCHEDULE & TIMELINE",
+    scheduleTitle = "schedule",
     day = "Day",
     week = "Week",
     commitments = "commitments",
-    projectsTitle = "PROJECTS & WORKSPACES",
-    profileTitle = "SETTINGS & PREFERENCES",
+    projectsTitle = "projects",
+    profileTitle = "settings",
     displayLanguage = "Display Language",
     displayLanguageSub = "Choose application interface language",
     signOut = "Sign Out"

@@ -63,6 +63,7 @@ fun FocusSummaryScreen(
   onShareMilestoneClick: () -> Unit = {}
 ) {
   val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+  val bottomInset = androidx.compose.foundation.layout.WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
   var selectedEnergy by remember { mutableStateOf("⚡ High Flow") }
   var noteText by remember { mutableStateOf("") }
 
@@ -80,7 +81,7 @@ fun FocusSummaryScreen(
       .padding(horizontal = 20.dp),
     contentPadding = androidx.compose.foundation.layout.PaddingValues(
       top = topInset + 16.dp,
-      bottom = 40.dp
+      bottom = 36.dp + bottomInset
     ),
     horizontalAlignment = Alignment.CenterHorizontally,
     verticalArrangement = Arrangement.spacedBy(16.dp)

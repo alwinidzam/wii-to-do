@@ -116,14 +116,14 @@ fun ProfileScreen(
           WiiBrandLogo(size = 30.dp)
           Column {
             Text(
-              text = "WII To-Do",
+              text = "wii to do",
               fontSize = 16.sp,
               fontWeight = FontWeight.Bold,
               color = BrandCharcoal,
               letterSpacing = (-0.02).sp
             )
             Text(
-              text = if (currentLanguage == AppLanguage.ID) "PENGATURAN & PREFERENSI" else "SETTINGS & PREFERENCES",
+              text = if (currentLanguage == AppLanguage.ID) "pengaturan" else "settings",
               fontSize = 10.sp,
               color = BrandSecondary,
               fontWeight = FontWeight.Medium,

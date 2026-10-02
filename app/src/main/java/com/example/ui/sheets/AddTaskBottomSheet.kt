@@ -76,6 +76,7 @@ fun AddTaskBottomSheet(
     TaskPriority.HIGH,
     TaskPriority.BLOCKER
   )
+  val bottomInset = androidx.compose.foundation.layout.WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
   Surface(
     modifier = modifier.fillMaxWidth(),
@@ -86,7 +87,7 @@ fun AddTaskBottomSheet(
     Column(
       modifier = Modifier
         .fillMaxWidth()
-        .padding(horizontal = 20.dp, vertical = 16.dp)
+        .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 20.dp + bottomInset)
         .verticalScroll(rememberScrollState()),
       verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {

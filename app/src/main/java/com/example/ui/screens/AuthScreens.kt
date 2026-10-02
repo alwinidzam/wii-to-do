@@ -60,6 +60,7 @@ fun OnboardingScreen(
   onGetStarted: () -> Unit,
   onSignInClick: () -> Unit,
   onGuestSignIn: () -> Unit = onGetStarted,
+  onDeveloperLogin: () -> Unit = {},
   modifier: Modifier = Modifier
 ) {
   val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -128,7 +129,7 @@ fun OnboardingScreen(
       modifier = Modifier
         .fillMaxWidth()
         .padding(bottom = 32.dp),
-      verticalArrangement = Arrangement.spacedBy(12.dp)
+      verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
       Button(
         onClick = onGetStarted,
@@ -177,6 +178,26 @@ fun OnboardingScreen(
           color = Color(0xFF747878)
         )
       }
+
+      Surface(
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(48.dp)
+          .clip(RoundedCornerShape(12.dp))
+          .clickable { onDeveloperLogin() },
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xFFF0FDF4),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF86EFAC))
+      ) {
+        Box(contentAlignment = Alignment.Center) {
+          Text(
+            text = "🧪 Masuk Akun Developer (Mode Pengujian)",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color(0xFF15803D)
+          )
+        }
+      }
     }
   }
 }
@@ -188,11 +209,12 @@ fun SignInScreen(
   onSignUpClick: () -> Unit,
   onGoogleSignIn: () -> Unit = onSignInSuccess,
   onGuestSignIn: () -> Unit = onSignInSuccess,
+  onDeveloperLogin: () -> Unit = onSignInSuccess,
   modifier: Modifier = Modifier
 ) {
   val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-  var email by remember { mutableStateOf("alwi.student@university.edu") }
-  var password by remember { mutableStateOf("••••••••••••") }
+  var email by remember { mutableStateOf("") }
+  var password by remember { mutableStateOf("") }
 
   Column(
     modifier = modifier
@@ -368,6 +390,28 @@ fun SignInScreen(
       )
     }
 
+    Spacer(modifier = Modifier.height(8.dp))
+
+    Surface(
+      modifier = Modifier
+        .fillMaxWidth()
+        .height(46.dp)
+        .clip(RoundedCornerShape(12.dp))
+        .clickable { onDeveloperLogin() },
+      shape = RoundedCornerShape(12.dp),
+      color = Color(0xFFF0FDF4),
+      border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF86EFAC))
+    ) {
+      Box(contentAlignment = Alignment.Center) {
+        Text(
+          text = "🧪 Masuk Akun Developer (Mode Pengujian)",
+          fontSize = 13.sp,
+          fontWeight = FontWeight.SemiBold,
+          color = Color(0xFF15803D)
+        )
+      }
+    }
+
     Spacer(modifier = Modifier.height(20.dp))
 
     Row(
@@ -399,9 +443,9 @@ fun SignUpScreen(
   modifier: Modifier = Modifier
 ) {
   val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-  var name by remember { mutableStateOf("Alwi Pratama") }
-  var email by remember { mutableStateOf("alwi.student@university.edu") }
-  var program by remember { mutableStateOf("Informatics Engineering • Year 3") }
+  var name by remember { mutableStateOf("") }
+  var email by remember { mutableStateOf("") }
+  var program by remember { mutableStateOf("") }
 
   Column(
     modifier = modifier

@@ -48,6 +48,7 @@ fun AddSubTaskSheet(
 ) {
   var subtaskTitle by remember { mutableStateOf("") }
   var selectedEffort by remember { mutableStateOf(30) }
+  val bottomInset = androidx.compose.foundation.layout.WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
   Surface(
     modifier = modifier.fillMaxWidth(),
@@ -58,7 +59,7 @@ fun AddSubTaskSheet(
     Column(
       modifier = Modifier
         .fillMaxWidth()
-        .padding(horizontal = 20.dp, vertical = 16.dp),
+        .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 20.dp + bottomInset),
       verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
       // Drag pill
