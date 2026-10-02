@@ -663,14 +663,13 @@ fun WiiToDoApp(
     if (showAcademicCourseManager) {
       AcademicCourseManagerBottomSheet(
         semesters = academicSemesters,
-        activeSemesterId = userProfile.activeSemesterId,
         courses = academicCourses,
-        targetSks = userProfile.targetSks,
-        targetGpa = userProfile.targetGpa,
-        onSelectSemester = { semId -> viewModel.setActiveSemester(semId) },
+        activeSemesterId = userProfile.activeSemesterId,
+        onSetActiveSemester = { semId -> viewModel.setActiveSemester(semId) },
         onAddCourse = { course -> viewModel.addAcademicCourse(course) },
+        onUpdateCourse = { course -> viewModel.updateCourse(course) },
         onDeleteCourse = { courseId -> viewModel.deleteCourse(courseId) },
-        onUpdateTargets = { gpa, sks -> viewModel.updateStudentProfile(targetGpa = gpa, targetSks = sks) },
+        onAddSemester = { num, yr, term, gpa, sks -> viewModel.addSemester(num, yr, term, gpa, sks) },
         onDismiss = { showAcademicCourseManager = false }
       )
     }

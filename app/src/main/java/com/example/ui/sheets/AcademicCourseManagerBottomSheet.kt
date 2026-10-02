@@ -90,9 +90,9 @@ fun AcademicCourseManagerBottomSheet(
   activeSemesterId: String,
   onSetActiveSemester: (String) -> Unit,
   onAddCourse: (AcademicCourse) -> Unit,
-  onUpdateCourse: (AcademicCourse) -> Unit,
+  onUpdateCourse: (AcademicCourse) -> Unit = {},
   onDeleteCourse: (String) -> Unit,
-  onAddSemester: (Int, String, String, Double, Int) -> Unit,
+  onAddSemester: (Int, String, String, Double, Int) -> Unit = { _, _, _, _, _ -> },
   onDismiss: () -> Unit,
   modifier: Modifier = Modifier
 ) {
