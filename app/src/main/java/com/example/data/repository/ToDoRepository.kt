@@ -140,9 +140,9 @@ class ToDoRepository private constructor(
       dueDate = "Ongoing",
       totalTasks = 0,
       completedTasks = 0,
-      inProgressTasks = 0,
-      progress = 0f,
-      accentColor = "#2563EB"
+      activeSprint = "Sprint #1",
+      nextTaskPreview = "",
+      nextTaskDue = ""
     )
   )
 
@@ -152,15 +152,24 @@ class ToDoRepository private constructor(
     val devProjects = getInitialProjects()
     val devSchedule = getInitialSchedule()
     val devProfile = UserProfile(
-      id = "default_user",
       name = "Alwi Developer",
       email = "developer@wiitodo.app",
       program = "Lead Systems Architect • Level 5",
+      focusGoal = "Testing all features and UI architecture",
+      level = 5,
+      levelTitle = "Focus Architect",
+      currentXp = 1000,
+      targetXp = 1500,
       totalXpAllTime = 3850,
       streakDays = 14,
-      currentStreak = 14,
-      hapticFeedbackEnabled = true,
-      calendarSyncEnabled = true
+      tasksDoneCount = 43,
+      onTimeRate = "99%",
+      focusHoursLogged = "24.5h",
+      campusSyncEnabled = true,
+      morningBriefingEnabled = true,
+      autoFocusMode = true,
+      hapticFeedback = true,
+      completionSounds = false
     )
 
     _tasks.value = devTasks
@@ -195,15 +204,24 @@ class ToDoRepository private constructor(
     setUserLoggedIn(true)
     val freshProjects = getDefaultFreshProjects()
     val freshProfile = UserProfile(
-      id = "default_user",
-      name = name.ifBlank { "Alwi" },
+      name = name.ifBlank { "User" },
       email = email.ifBlank { "user@wiitodo.app" },
       program = program.ifBlank { "Personal Workspace" },
+      focusGoal = "Focusing on daily goals",
+      level = 1,
+      levelTitle = "Novice Scholar",
+      currentXp = 0,
+      targetXp = 500,
       totalXpAllTime = 0,
       streakDays = 1,
-      currentStreak = 1,
-      hapticFeedbackEnabled = true,
-      calendarSyncEnabled = false
+      tasksDoneCount = 0,
+      onTimeRate = "100%",
+      focusHoursLogged = "0h",
+      campusSyncEnabled = false,
+      morningBriefingEnabled = false,
+      autoFocusMode = false,
+      hapticFeedback = true,
+      completionSounds = false
     )
 
     _tasks.value = emptyList()
