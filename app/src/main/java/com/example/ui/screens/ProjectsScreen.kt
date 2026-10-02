@@ -115,7 +115,7 @@ fun ProjectsScreen(
       Row(
         modifier = Modifier
           .fillMaxWidth()
-          .padding(start = 20.dp, end = 20.dp, top = topInset + 12.dp, bottom = 8.dp),
+          .padding(start = 20.dp, end = 20.dp, top = topInset + 8.dp, bottom = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
       ) {

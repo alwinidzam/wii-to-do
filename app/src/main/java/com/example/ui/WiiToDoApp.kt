@@ -17,12 +17,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -79,10 +82,6 @@ import kotlinx.coroutines.launch
 fun WiiToDoApp(
   viewModel: ToDoViewModel = viewModel()
 ) {
-  BackHandler(enabled = viewModel.canNavigateBack) {
-    viewModel.navigateBack()
-  }
-
   val destination by viewModel.currentDestination.collectAsState()
   val tasks by viewModel.tasks.collectAsState()
   val projects by viewModel.projects.collectAsState()
@@ -123,16 +122,68 @@ fun WiiToDoApp(
     destination is AppDestination.Projects ||
     destination is AppDestination.Profile
 
-  val currentNavTab = when (destination) {
-    AppDestination.Home -> NavigationTab.HOME
-    AppDestination.Schedule -> NavigationTab.SCHEDULE
-    AppDestination.Projects -> NavigationTab.PROJECTS
-    AppDestination.Profile -> NavigationTab.PROFILE
+  val pagerState = rememberPagerState(
+    initialPage = when (destination) {
+      AppDestination.Home -> 0
+      AppDestination.Schedule -> 1
+      AppDestination.Projects -> 2
+      AppDestination.Profile -> 3
+      else -> 0
+    }
+  ) { 4 }
+
+  // Sync pager swipe -> destination state
+  LaunchedEffect(pagerState.currentPage) {
+    if (isPrimaryTab) {
+      val targetDest = when (pagerState.currentPage) {
+        0 -> AppDestination.Home
+        1 -> AppDestination.Schedule
+        2 -> AppDestination.Projects
+        3 -> AppDestination.Profile
+        else -> AppDestination.Home
+      }
+      if (destination != targetDest) {
+        viewModel.switchToTab(targetDest)
+      }
+    }
+  }
+
+  // Sync destination state -> pager scroll
+  LaunchedEffect(destination) {
+    val targetPage = when (destination) {
+      AppDestination.Home -> 0
+      AppDestination.Schedule -> 1
+      AppDestination.Projects -> 2
+      AppDestination.Profile -> 3
+      else -> null
+    }
+    if (targetPage != null && pagerState.currentPage != targetPage) {
+      pagerState.animateScrollToPage(targetPage)
+    }
+  }
+
+  val currentNavTab = when (pagerState.currentPage) {
+    0 -> NavigationTab.HOME
+    1 -> NavigationTab.SCHEDULE
+    2 -> NavigationTab.PROJECTS
+    3 -> NavigationTab.PROFILE
     else -> NavigationTab.HOME
+  }
+
+  BackHandler(enabled = (isPrimaryTab && pagerState.currentPage != 0) || viewModel.canNavigateBack) {
+    if (isPrimaryTab && pagerState.currentPage != 0) {
+      coroutineScope.launch {
+        pagerState.animateScrollToPage(0)
+      }
+      viewModel.switchToTab(AppDestination.Home)
+    } else {
+      viewModel.navigateBack()
+    }
   }
 
   Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
+      contentWindowInsets = WindowInsets(0.dp),
       snackbarHost = { SnackbarHost(snackbarHostState) },
       containerColor = com.example.ui.theme.PrimaryBackground,
       bottomBar = {
@@ -140,12 +191,22 @@ fun WiiToDoApp(
           BottomDockNavigation(
             currentTab = currentNavTab,
             onTabSelected = { tab ->
-              when (tab) {
-                NavigationTab.HOME -> viewModel.navigateTo(AppDestination.Home)
-                NavigationTab.SCHEDULE -> viewModel.navigateTo(AppDestination.Schedule)
-                NavigationTab.PROJECTS -> viewModel.navigateTo(AppDestination.Projects)
-                NavigationTab.PROFILE -> viewModel.navigateTo(AppDestination.Profile)
+              val targetPage = when (tab) {
+                NavigationTab.HOME -> 0
+                NavigationTab.SCHEDULE -> 1
+                NavigationTab.PROJECTS -> 2
+                NavigationTab.PROFILE -> 3
               }
+              coroutineScope.launch {
+                pagerState.animateScrollToPage(targetPage)
+              }
+              val targetDest = when (tab) {
+                NavigationTab.HOME -> AppDestination.Home
+                NavigationTab.SCHEDULE -> AppDestination.Schedule
+                NavigationTab.PROJECTS -> AppDestination.Projects
+                NavigationTab.PROFILE -> AppDestination.Profile
+              }
+              viewModel.switchToTab(targetDest)
             },
             onAddClick = { showAddTaskBottomSheet = true },
             currentLanguage = currentLanguage
@@ -153,92 +214,105 @@ fun WiiToDoApp(
         }
       }
     ) { innerPadding ->
+      @Suppress("UNUSED_VARIABLE")
+      val pad = innerPadding
       Box(
-        modifier = Modifier
-          .fillMaxSize()
-          .padding(innerPadding)
+        modifier = Modifier.fillMaxSize()
       ) {
-        AnimatedContent(
-          targetState = destination,
-          transitionSpec = {
-            (fadeIn(animationSpec = tween(220, delayMillis = 40)) +
-              slideInHorizontally(animationSpec = tween(260, easing = FastOutSlowInEasing)) { fullWidth -> (fullWidth * 0.12f).toInt() })
-              .togetherWith(
-                fadeOut(animationSpec = tween(180)) +
-                  slideOutHorizontally(animationSpec = tween(220, easing = FastOutSlowInEasing)) { fullWidth -> -(fullWidth * 0.12f).toInt() }
-              )
-          },
-          label = "screen_navigation_transition"
-        ) { currentDest ->
-          when (currentDest) {
-          AppDestination.Home -> {
-            HomeScreen(
-              tasks = tasks,
-              selectedDayIndex = selectedDayIndex,
-              selectedCategory = categoryFilter,
-              searchQuery = searchQuery,
-              onDaySelected = { viewModel.setSelectedDay(it) },
-              onCategorySelected = { viewModel.setHomeCategoryFilter(it) },
-              onSearchQueryChanged = { viewModel.setSearchQuery(it) },
-              onToggleTaskComplete = { viewModel.toggleTaskCompletion(it) },
-              onTaskClick = { id ->
-                selectedDetailTaskId = id
-                viewModel.navigateTo(AppDestination.TaskDetail(id))
-              },
-              onProfileClick = { viewModel.navigateTo(AppDestination.Profile) },
-              userName = userProfile.name.split(" ").firstOrNull() ?: "Alwi",
-              onDeleteTask = { id -> viewModel.deleteTask(id) },
-              userProfile = userProfile,
-              onMilestoneClick = { viewModel.navigateTo(AppDestination.MilestoneJourney) },
-              currentLanguage = currentLanguage,
-              onLanguageSelected = { viewModel.setLanguage(it) }
-            )
-          }
+        if (isPrimaryTab) {
+          HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+            beyondViewportPageCount = 1
+          ) { page ->
+            when (page) {
+              0 -> {
+                HomeScreen(
+                  tasks = tasks,
+                  selectedDayIndex = selectedDayIndex,
+                  selectedCategory = categoryFilter,
+                  searchQuery = searchQuery,
+                  onDaySelected = { viewModel.setSelectedDay(it) },
+                  onCategorySelected = { viewModel.setHomeCategoryFilter(it) },
+                  onSearchQueryChanged = { viewModel.setSearchQuery(it) },
+                  onToggleTaskComplete = { viewModel.toggleTaskCompletion(it) },
+                  onTaskClick = { id ->
+                    selectedDetailTaskId = id
+                    viewModel.navigateTo(AppDestination.TaskDetail(id))
+                  },
+                  onProfileClick = {
+                    coroutineScope.launch { pagerState.animateScrollToPage(3) }
+                    viewModel.switchToTab(AppDestination.Profile)
+                  },
+                  userName = userProfile.name.split(" ").firstOrNull() ?: "Alwi",
+                  onDeleteTask = { id -> viewModel.deleteTask(id) },
+                  userProfile = userProfile,
+                  onMilestoneClick = { viewModel.navigateTo(AppDestination.MilestoneJourney) },
+                  currentLanguage = currentLanguage,
+                  onLanguageSelected = { viewModel.setLanguage(it) }
+                )
+              }
 
-          AppDestination.Schedule -> {
-            ScheduleScreen(
-              scheduleItems = schedule,
-              viewMode = scheduleViewMode,
-              selectedDayIndex = selectedDayIndex,
-              activeFocusSession = activeFocus,
-              onViewModeChanged = { viewModel.setScheduleViewMode(it) },
-              onDaySelected = { viewModel.setSelectedDay(it) },
-              onScheduleSlotClick = { start, end ->
-                scheduleBookingSlot = Pair(start, end)
-              },
-              onFocusMiniPlayerClick = { viewModel.navigateTo(AppDestination.ActiveFocus) },
-              onToggleTimer = { viewModel.toggleFocusTimerRunning() },
-              onCompleteSprint = { viewModel.completeCurrentSprint() }
-            )
-          }
+              1 -> {
+                ScheduleScreen(
+                  scheduleItems = schedule,
+                  viewMode = scheduleViewMode,
+                  selectedDayIndex = selectedDayIndex,
+                  activeFocusSession = activeFocus,
+                  onViewModeChanged = { viewModel.setScheduleViewMode(it) },
+                  onDaySelected = { viewModel.setSelectedDay(it) },
+                  onScheduleSlotClick = { start, end ->
+                    scheduleBookingSlot = Pair(start, end)
+                  },
+                  onFocusMiniPlayerClick = { viewModel.navigateTo(AppDestination.ActiveFocus) },
+                  onToggleTimer = { viewModel.toggleFocusTimerRunning() },
+                  onCompleteSprint = { viewModel.completeCurrentSprint() }
+                )
+              }
 
-          AppDestination.Projects -> {
-            ProjectsScreen(
-              projects = projects,
-              tasks = tasks,
-              onTaskClick = { id ->
-                selectedDetailTaskId = id
-                viewModel.navigateTo(AppDestination.TaskDetail(id))
-              },
-              onNewTaskClick = { viewModel.navigateTo(AppDestination.CreateTask) },
-              onUpdateKanbanStatus = { id, col -> viewModel.updateKanbanStatus(id, col) }
-            )
-          }
+              2 -> {
+                ProjectsScreen(
+                  projects = projects,
+                  tasks = tasks,
+                  onTaskClick = { id ->
+                    selectedDetailTaskId = id
+                    viewModel.navigateTo(AppDestination.TaskDetail(id))
+                  },
+                  onNewTaskClick = { viewModel.navigateTo(AppDestination.CreateTask) },
+                  onUpdateKanbanStatus = { id, col -> viewModel.updateKanbanStatus(id, col) }
+                )
+              }
 
-          AppDestination.Profile -> {
-            ProfileScreen(
-              profile = userProfile,
-              onToggleHaptics = { viewModel.toggleHapticFeedback() },
-              onToggleCalendarSync = { viewModel.toggleCalendarSync() },
-              onToggleMorningBriefing = { viewModel.toggleMorningBriefing() },
-              onToggleAutoFocus = { viewModel.toggleAutoFocusMode() },
-              onViewLevelCelebration = { viewModel.triggerLevelUpModal() },
-              onSignOut = { viewModel.signOut() },
-              onOpenMilestoneJourney = { viewModel.navigateTo(AppDestination.MilestoneJourney) },
-              currentLanguage = currentLanguage,
-              onLanguageSelected = { viewModel.setLanguage(it) }
-            )
+              3 -> {
+                ProfileScreen(
+                  profile = userProfile,
+                  onToggleHaptics = { viewModel.toggleHapticFeedback() },
+                  onToggleCalendarSync = { viewModel.toggleCalendarSync() },
+                  onToggleMorningBriefing = { viewModel.toggleMorningBriefing() },
+                  onToggleAutoFocus = { viewModel.toggleAutoFocusMode() },
+                  onViewLevelCelebration = { viewModel.triggerLevelUpModal() },
+                  onSignOut = { viewModel.signOut() },
+                  onOpenMilestoneJourney = { viewModel.navigateTo(AppDestination.MilestoneJourney) },
+                  currentLanguage = currentLanguage,
+                  onLanguageSelected = { viewModel.setLanguage(it) }
+                )
+              }
+            }
           }
+        } else {
+          AnimatedContent(
+            targetState = destination,
+            transitionSpec = {
+              (fadeIn(animationSpec = tween(220, delayMillis = 40)) +
+                slideInHorizontally(animationSpec = tween(260, easing = FastOutSlowInEasing)) { fullWidth -> (fullWidth * 0.12f).toInt() })
+                .togetherWith(
+                  fadeOut(animationSpec = tween(180)) +
+                    slideOutHorizontally(animationSpec = tween(220, easing = FastOutSlowInEasing)) { fullWidth -> -(fullWidth * 0.12f).toInt() }
+                )
+            },
+            label = "screen_navigation_transition"
+          ) { currentDest ->
+            when (currentDest) {
 
           is AppDestination.TaskDetail -> {
             val targetId = currentDest.taskId.ifEmpty { selectedDetailTaskId }
@@ -356,9 +430,6 @@ fun WiiToDoApp(
               onSignInClick = { viewModel.navigateTo(AppDestination.Login) },
               onGuestSignIn = {
                 viewModel.loginAsFreshUser("Guest Scholar", "guest@wiitodo.app", "Offline Focus Workspace")
-              },
-              onDeveloperLogin = {
-                viewModel.loginAsDeveloper()
               }
             )
           }
@@ -366,8 +437,15 @@ fun WiiToDoApp(
           AppDestination.Login -> {
             SignInScreen(
               onBackClick = { viewModel.navigateBack() },
-              onSignInSuccess = {
-                viewModel.loginAsFreshUser("Alwi Pratama", "alwi.student@university.edu", "Informatics Engineering • Year 3")
+              onSignInSuccess = { email, password ->
+                if (email.trim().equals("alwinizam0405@gmail.com", ignoreCase = true) && password == "justwiu1") {
+                  viewModel.loginAsDeveloper()
+                } else {
+                  val name = email.substringBefore("@")
+                    .replace(".", " ")
+                    .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                  viewModel.loginAsFreshUser(name, email, "Personal Workspace")
+                }
               },
               onSignUpClick = { viewModel.navigateTo(AppDestination.SignUp) },
               onGoogleSignIn = {
@@ -375,9 +453,6 @@ fun WiiToDoApp(
               },
               onGuestSignIn = {
                 viewModel.loginAsFreshUser("Guest Scholar", "guest@wiitodo.app", "Offline Focus Workspace")
-              },
-              onDeveloperLogin = {
-                viewModel.loginAsDeveloper()
               }
             )
           }
@@ -413,10 +488,17 @@ fun WiiToDoApp(
             val effort = task?.estimatedEffortMinutes ?: 25
             viewModel.startFocusSession(title, effort)
           }
+
+          // Primary tabs handled in HorizontalPager
+          AppDestination.Home,
+          AppDestination.Schedule,
+          AppDestination.Projects,
+          AppDestination.Profile -> {}
         }
       }
     }
-    }
+  }
+}
 
     // Modal Sheet 1: Add Subtask
     if (subTaskSheetParentId != null) {

@@ -60,7 +60,6 @@ fun OnboardingScreen(
   onGetStarted: () -> Unit,
   onSignInClick: () -> Unit,
   onGuestSignIn: () -> Unit = onGetStarted,
-  onDeveloperLogin: () -> Unit = {},
   modifier: Modifier = Modifier
 ) {
   val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -129,7 +128,7 @@ fun OnboardingScreen(
       modifier = Modifier
         .fillMaxWidth()
         .padding(bottom = 32.dp),
-      verticalArrangement = Arrangement.spacedBy(10.dp)
+      verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
       Button(
         onClick = onGetStarted,
@@ -178,26 +177,6 @@ fun OnboardingScreen(
           color = Color(0xFF747878)
         )
       }
-
-      Surface(
-        modifier = Modifier
-          .fillMaxWidth()
-          .height(48.dp)
-          .clip(RoundedCornerShape(12.dp))
-          .clickable { onDeveloperLogin() },
-        shape = RoundedCornerShape(12.dp),
-        color = Color(0xFFF0FDF4),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF86EFAC))
-      ) {
-        Box(contentAlignment = Alignment.Center) {
-          Text(
-            text = "🧪 Masuk Akun Developer (Mode Pengujian)",
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF15803D)
-          )
-        }
-      }
     }
   }
 }
@@ -205,11 +184,10 @@ fun OnboardingScreen(
 @Composable
 fun SignInScreen(
   onBackClick: () -> Unit,
-  onSignInSuccess: () -> Unit,
+  onSignInSuccess: (email: String, password: String) -> Unit,
   onSignUpClick: () -> Unit,
-  onGoogleSignIn: () -> Unit = onSignInSuccess,
-  onGuestSignIn: () -> Unit = onSignInSuccess,
-  onDeveloperLogin: () -> Unit = onSignInSuccess,
+  onGoogleSignIn: () -> Unit = { onSignInSuccess("alwi.student@university.edu", "") },
+  onGuestSignIn: () -> Unit = { onSignInSuccess("guest@wiitodo.app", "") },
   modifier: Modifier = Modifier
 ) {
   val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -294,7 +272,12 @@ fun SignInScreen(
     Spacer(modifier = Modifier.height(20.dp))
 
     Button(
-      onClick = onSignInSuccess,
+      onClick = {
+        if (email.isNotBlank()) {
+          onSignInSuccess(email.trim(), password.trim())
+        }
+      },
+      enabled = email.isNotBlank(),
       modifier = Modifier
         .fillMaxWidth()
         .height(52.dp),
@@ -388,28 +371,6 @@ fun SignInScreen(
         fontWeight = FontWeight.Medium,
         color = Color(0xFF747878)
       )
-    }
-
-    Spacer(modifier = Modifier.height(8.dp))
-
-    Surface(
-      modifier = Modifier
-        .fillMaxWidth()
-        .height(46.dp)
-        .clip(RoundedCornerShape(12.dp))
-        .clickable { onDeveloperLogin() },
-      shape = RoundedCornerShape(12.dp),
-      color = Color(0xFFF0FDF4),
-      border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF86EFAC))
-    ) {
-      Box(contentAlignment = Alignment.Center) {
-        Text(
-          text = "🧪 Masuk Akun Developer (Mode Pengujian)",
-          fontSize = 13.sp,
-          fontWeight = FontWeight.SemiBold,
-          color = Color(0xFF15803D)
-        )
-      }
     }
 
     Spacer(modifier = Modifier.height(20.dp))

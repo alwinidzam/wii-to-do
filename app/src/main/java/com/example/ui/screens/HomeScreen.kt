@@ -179,7 +179,7 @@ fun HomeScreen(
           .padding(
             start = 20.dp,
             end = 20.dp,
-            top = topInset + 12.dp,
+            top = topInset + 8.dp,
             bottom = 8.dp
           ),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -211,16 +211,11 @@ fun HomeScreen(
           }
         }
 
-        // Quick Actions: Language Switcher + Notification bell + AP Avatar
+        // Quick Actions: Notification bell + AP Avatar
         Row(
           verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(8.dp)
+          horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-          // Language Switcher [ ID | EN ]
-          LanguageSwitchPill(
-            currentLanguage = currentLanguage,
-            onLanguageSelected = onLanguageSelected
-          )
           // Notification Bell Button
           Surface(
             modifier = Modifier

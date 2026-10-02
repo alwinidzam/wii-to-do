@@ -127,6 +127,11 @@ class ToDoViewModel(
     startTimerTicker()
   }
 
+  fun switchToTab(destination: AppDestination) {
+    if (_currentDestination.value == destination) return
+    _currentDestination.value = destination
+  }
+
   fun navigateTo(destination: AppDestination) {
     if (_currentDestination.value == destination) return
     _navigationStack.add(_currentDestination.value)

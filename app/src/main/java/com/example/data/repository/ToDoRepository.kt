@@ -152,10 +152,10 @@ class ToDoRepository private constructor(
     val devProjects = getInitialProjects()
     val devSchedule = getInitialSchedule()
     val devProfile = UserProfile(
-      name = "Alwi Developer",
-      email = "developer@wiitodo.app",
-      program = "Lead Systems Architect • Level 5",
-      focusGoal = "Testing all features and UI architecture",
+      name = "Alwi Pratama",
+      email = "alwinizam0405@gmail.com",
+      program = "Informatics Engineering • Year 3",
+      focusGoal = "Focusing on Thesis & UI Architecture",
       level = 5,
       levelTitle = "Focus Architect",
       currentXp = 1000,
