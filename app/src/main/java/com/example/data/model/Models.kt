@@ -9,9 +9,11 @@ enum class TaskPriority(val label: String) {
 }
 
 enum class KanbanColumn(val label: String) {
+  BACKLOG("Backlog"),
   TO_DO("To Do"),
   IN_PROGRESS("In Progress"),
-  DONE("Done")
+  DONE("Done"),
+  CANCELED("Canceled")
 }
 
 data class SubTask(

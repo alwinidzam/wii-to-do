@@ -343,6 +343,7 @@ fun AddTaskBottomSheet(
                 TaskPriority.MED -> "Medium Priority"
                 TaskPriority.HIGH -> "High Priority"
                 TaskPriority.BLOCKER -> "Urgent"
+                TaskPriority.NONE -> "No Priority"
               },
               fontSize = 11.5.sp,
               fontWeight = FontWeight.Medium,

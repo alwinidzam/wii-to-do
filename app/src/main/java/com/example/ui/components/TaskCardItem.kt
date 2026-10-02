@@ -245,6 +245,7 @@ fun TaskCardItem(
   }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun TaskCardContent(
   task: TaskItem,
@@ -434,8 +435,8 @@ private fun TaskCardContent(
             }
 
             // Sub-task Progress Bar
-            if (task.subtasksTotalCount > 0) {
-              val subProgress = task.subtasksCompletedCount.toFloat() / task.subtasksTotalCount.toFloat()
+            if (task.actualSubtasksTotal > 0) {
+              val subProgress = task.actualSubtasksCompleted.toFloat() / task.actualSubtasksTotal.toFloat()
               Row(
                 modifier = Modifier
                   .padding(top = 8.dp)
@@ -459,7 +460,7 @@ private fun TaskCardContent(
                   )
                 }
                 Text(
-                  text = "${task.subtasksCompletedCount}/${task.subtasksTotalCount}",
+                  text = "${task.actualSubtasksCompleted}/${task.actualSubtasksTotal}",
                   fontSize = 10.sp,
                   color = BrandSecondary,
                   fontWeight = FontWeight.Medium
