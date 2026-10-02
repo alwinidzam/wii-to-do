@@ -72,6 +72,7 @@ import com.example.data.model.ShareCardAspectRatio
 import com.example.data.model.ShareCardConfig
 import com.example.data.model.ShareCardTheme
 import com.example.data.model.UserProfile
+import com.example.ui.components.VerifiedBadgeIcon
 import com.example.ui.components.WiiBrandLogo
 import com.example.ui.theme.BrandBorder
 import com.example.ui.theme.BrandBorderLight
@@ -317,13 +318,21 @@ fun SocialShareStudioScreen(
 
             // User Identity & Current Tier
             Column {
-              Text(
-                text = userProfile.name.uppercase(),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = textSecondary,
-                letterSpacing = 1.sp
-              )
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+              ) {
+                Text(
+                  text = userProfile.name.uppercase(),
+                  fontSize = 11.sp,
+                  fontWeight = FontWeight.SemiBold,
+                  color = textSecondary,
+                  letterSpacing = 1.sp
+                )
+                if (userProfile.isVerified) {
+                  VerifiedBadgeIcon(size = 12.dp)
+                }
+              }
               Text(
                 text = userProfile.program,
                 fontSize = 10.sp,

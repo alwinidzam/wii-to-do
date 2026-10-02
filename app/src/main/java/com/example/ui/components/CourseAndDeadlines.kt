@@ -305,8 +305,8 @@ fun FluidDeadlineComposer(
       // Live Apple HIG Pill
       Surface(
         shape = RoundedCornerShape(6.dp),
-        color = if (selectedTimeStr == "23:59") BrandTerracottaBg else BrandOliveBg,
-        border = BorderStroke(0.5.dp, if (selectedTimeStr == "23:59") BrandTerracotta.copy(alpha = 0.35f) else BrandOlive.copy(alpha = 0.35f))
+        color = Color(0xFFFEF3C7),
+        border = BorderStroke(0.5.dp, Color(0xFFF59E0B).copy(alpha = 0.4f))
       ) {
         Row(
           modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
@@ -316,14 +316,14 @@ fun FluidDeadlineComposer(
           Icon(
             imageVector = Icons.Outlined.Schedule,
             contentDescription = null,
-            tint = if (selectedTimeStr == "23:59") BrandTerracotta else BrandOlive,
+            tint = Color(0xFFB45309),
             modifier = Modifier.size(11.dp)
           )
           Text(
             text = "$selectedDateLabel • $selectedTimeStr",
             fontSize = 10.5.sp,
             fontWeight = FontWeight.SemiBold,
-            color = if (selectedTimeStr == "23:59") BrandTerracotta else BrandOlive
+            color = Color(0xFFB45309)
           )
         }
       }
@@ -419,14 +419,13 @@ fun FluidDeadlineComposer(
         Surface(
           shape = RoundedCornerShape(8.dp),
           color = when {
-            isSelected && isEndOfDay -> BrandTerracotta
             isSelected -> BrandCharcoal
-            isEndOfDay -> BrandTerracottaBg.copy(alpha = 0.5f)
+            isEndOfDay -> Color(0xFFFEF3C7)
             else -> Color.White
           },
           border = when {
             isSelected -> null
-            isEndOfDay -> BorderStroke(0.75.dp, BrandTerracotta.copy(alpha = 0.4f))
+            isEndOfDay -> BorderStroke(0.75.dp, Color(0xFFF59E0B).copy(alpha = 0.4f))
             else -> BorderStroke(0.75.dp, LinearBorderHairline)
           },
           modifier = Modifier
@@ -447,7 +446,7 @@ fun FluidDeadlineComposer(
               fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
               color = when {
                 isSelected -> Color.White
-                isEndOfDay -> BrandTerracotta
+                isEndOfDay -> Color(0xFFB45309)
                 else -> BrandSecondary
               }
             )

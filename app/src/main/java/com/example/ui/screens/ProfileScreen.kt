@@ -54,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.UserProfile
+import com.example.ui.components.VerifiedBadgeIcon
 import com.example.ui.components.WiiBrandLogo
 import com.example.ui.i18n.AppLanguage
 import com.example.ui.i18n.LanguageSwitchPill
@@ -215,19 +216,9 @@ fun ProfileScreen(
                 color = BrandCharcoal,
                 letterSpacing = (-0.01).sp
               )
-              Spacer(modifier = Modifier.width(6.dp))
-              Surface(
-                shape = RoundedCornerShape(4.dp),
-                color = BrandOliveBg,
-                border = BorderStroke(1.dp, BrandOliveBorder)
-              ) {
-                Text(
-                  text = "VERIFIED",
-                  fontSize = 9.sp,
-                  fontWeight = FontWeight.Bold,
-                  color = BrandOlive,
-                  modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
-                )
+              if (profile.isVerified) {
+                Spacer(modifier = Modifier.width(6.dp))
+                VerifiedBadgeIcon(size = 18.dp)
               }
             }
 

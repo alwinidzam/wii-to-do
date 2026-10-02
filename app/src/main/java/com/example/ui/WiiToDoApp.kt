@@ -575,26 +575,19 @@ fun WiiToDoApp(
 
     // Modal Sheet 3: Add Task Bottom Sheet (triggered by FAB)
     if (showAddTaskBottomSheet) {
-      Box(
-        modifier = Modifier
-          .fillMaxSize()
-          .background(Color.Black.copy(alpha = 0.45f)),
-        contentAlignment = Alignment.BottomCenter
-      ) {
-        AddTaskBottomSheet(
-          onDismiss = { showAddTaskBottomSheet = false },
-          courses = academicCourses,
-          onAddNewCourse = { viewModel.addAcademicCourse(it) },
-          onTaskCreated = { title, desc, cat, proj, prio, dueTime, dueDate, courseName ->
-            viewModel.addTask(title, desc, cat, proj, prio, dueTime, dueDate, courseName)
-            showAddTaskBottomSheet = false
-            coroutineScope.launch {
-              val targetLabel = if (!courseName.isNullOrBlank()) courseName else cat
-              snackbarHostState.showSnackbar("Task added to $targetLabel")
-            }
+      AddTaskBottomSheet(
+        onDismiss = { showAddTaskBottomSheet = false },
+        courses = academicCourses,
+        onAddNewCourse = { viewModel.addAcademicCourse(it) },
+        onTaskCreated = { title, desc, cat, proj, prio, dueTime, dueDate, courseName ->
+          viewModel.addTask(title, desc, cat, proj, prio, dueTime, dueDate, courseName)
+          showAddTaskBottomSheet = false
+          coroutineScope.launch {
+            val targetLabel = if (!courseName.isNullOrBlank()) courseName else cat
+            snackbarHostState.showSnackbar("Task added to $targetLabel")
           }
-        )
-      }
+        }
+      )
     }
 
     // Level 5 Milestone Celebration Dialog

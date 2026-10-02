@@ -232,7 +232,8 @@ class ToDoRepository private constructor(
       morningBriefingEnabled = false,
       autoFocusMode = false,
       hapticFeedback = true,
-      completionSounds = false
+      completionSounds = false,
+      isVerified = false
     )
 
     _tasks.value = emptyList()
@@ -271,7 +272,8 @@ class ToDoRepository private constructor(
     morningBriefingEnabled = false,
     autoFocusMode = false,
     hapticFeedback = true,
-    completionSounds = false
+    completionSounds = false,
+    isVerified = false
   )
 
   fun signOutUser() {
@@ -756,7 +758,8 @@ class ToDoRepository private constructor(
       level = currentLevel,
       levelTitle = newLevelTitle,
       targetXp = currentTargetXp,
-      tasksDoneCount = tasksDone
+      tasksDoneCount = tasksDone,
+      isVerified = profile.isVerified || currentLevel >= 5
     )
     if (leveledUp) {
       _showLevelUpModal.value = true

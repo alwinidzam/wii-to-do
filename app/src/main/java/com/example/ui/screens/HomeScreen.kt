@@ -73,6 +73,7 @@ import com.example.ui.components.DateStripSelector
 import com.example.ui.components.LinearBorderHairline
 import com.example.ui.components.LinearDoneGreen
 import com.example.ui.components.TaskCardItem
+import com.example.ui.components.VerifiedBadgeIcon
 import com.example.ui.components.WiiBrandLogo
 import com.example.ui.components.getTodayIndex
 import com.example.ui.i18n.AppLanguage
@@ -228,14 +229,30 @@ fun HomeScreen(
                 letterSpacing = (-0.02).sp,
                 lineHeight = 17.sp
               )
-              Text(
-                text = "$greeting, $userName • $totalRemaining ${strings.remaining}",
-                fontSize = 10.5.sp,
-                fontWeight = FontWeight.Medium,
-                color = BrandSecondary,
-                letterSpacing = 0.2.sp,
-                lineHeight = 13.sp
-              )
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(3.dp)
+              ) {
+                Text(
+                  text = "$greeting, $userName",
+                  fontSize = 10.5.sp,
+                  fontWeight = FontWeight.Medium,
+                  color = BrandSecondary,
+                  letterSpacing = 0.2.sp,
+                  lineHeight = 13.sp
+                )
+                if (userProfile?.isVerified == true) {
+                  VerifiedBadgeIcon(size = 12.5.dp)
+                }
+                Text(
+                  text = " • $totalRemaining ${strings.remaining}",
+                  fontSize = 10.5.sp,
+                  fontWeight = FontWeight.Medium,
+                  color = BrandSecondary,
+                  letterSpacing = 0.2.sp,
+                  lineHeight = 13.sp
+                )
+              }
             }
           }
 

@@ -104,7 +104,8 @@ data class UserProfile(
   val morningBriefingEnabled: Boolean = true,
   val autoFocusMode: Boolean = true,
   val hapticFeedback: Boolean = true,
-  val completionSounds: Boolean = true
+  val completionSounds: Boolean = true,
+  val isVerified: Boolean = true
 )
 
 data class FocusSessionState(
