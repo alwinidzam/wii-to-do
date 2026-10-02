@@ -88,11 +88,30 @@ data class ProjectItem(
   val tags: List<String> = emptyList()
 )
 
+enum class VerifiedBadgeTier(
+  val title: String,
+  val subtitle: String,
+  val primaryColorHex: Long
+) {
+  NONE("Unverified", "Belum Terverifikasi", 0x00000000),
+  GOLD("Founder & Developer", "Pengembang Resmi Sistem", 0xFFF59E0B),
+  BLUE("Focus Achiever (L5+)", "Pencapaian Produktivitas Tinggi", 0xFF007AFF),
+  GREEN("Mahasiswa Terverifikasi", "Akademik & Kampus Aktif", 0xFF10B981)
+}
+
+enum class FocusTimerMode(val label: String, val defaultMinutes: Int) {
+  POMODORO_25("Pomodoro 25m", 25),
+  SPRINT_50("Deep Sprint 50m", 50),
+  FLOW_OPEN("Open Flow", 0)
+}
+
 data class UserProfile(
   val name: String = "Alwi Pratama",
-  val email: String = "alwi.student@university.edu",
-  val program: String = "Informatics Engineering • Year 3",
-  val focusGoal: String = "Focusing on Thesis & UI Architecture",
+  val email: String = "alwinizam0405@gmail.com",
+  val program: String = "Teknik Informatika • Semester 5",
+  val university: String = "Universitas Teknologi Just Wiu",
+  val studentId: String = "2110512044",
+  val focusGoal: String = "Fokus Skripsi & Arsitektur UI Mobile",
   val level: Int = 5,
   val levelTitle: String = "Focus Architect",
   val currentXp: Int = 1000,
@@ -107,17 +126,37 @@ data class UserProfile(
   val autoFocusMode: Boolean = true,
   val hapticFeedback: Boolean = true,
   val completionSounds: Boolean = true,
-  val isVerified: Boolean = true
-)
+  val isVerified: Boolean = true,
+  val verifiedTier: VerifiedBadgeTier = VerifiedBadgeTier.GOLD,
+  val targetGpa: Double = 3.85,
+  val targetSks: Int = 21,
+  val targetDailyFocusHours: Double = 4.0,
+  val activeSemesterId: String = "sem_5",
+  val focusDurationMinutes: Int = 25,
+  val breakDurationMinutes: Int = 5
+) {
+  val resolvedBadgeTier: VerifiedBadgeTier
+    get() = when {
+      email.equals("alwinizam0405@gmail.com", ignoreCase = true) -> VerifiedBadgeTier.GOLD
+      campusSyncEnabled || email.endsWith(".edu") || email.endsWith(".ac.id") -> VerifiedBadgeTier.GREEN
+      level >= 5 -> VerifiedBadgeTier.BLUE
+      isVerified -> verifiedTier
+      else -> VerifiedBadgeTier.NONE
+    }
+}
 
 data class FocusSessionState(
+  val taskId: String? = null,
   val taskTitle: String,
-  val targetSubtask: String,
+  val courseBadge: String? = null,
+  val courseColorHex: Long? = null,
+  val targetSubtask: String = "",
   val totalSeconds: Int = 25 * 60,
   val remainingSeconds: Int = 25 * 60,
   val isRunning: Boolean = false,
   val soundscape: String = "Brown Noise Calm",
-  val flowScore: Int = 92
+  val flowScore: Int = 92,
+  val mode: FocusTimerMode = FocusTimerMode.POMODORO_25
 )
 
 data class SprintReflection(
@@ -258,20 +297,51 @@ data class ShareCardConfig(
   val customQuote: String = "Building focus, one architectural brick at a time."
 )
 
+data class AcademicSemester(
+  val id: String,
+  val semesterNumber: Int,
+  val academicYear: String = "2026/2027",
+  val term: String = "Ganjil",
+  val isCurrent: Boolean = false,
+  val targetGpa: Double = 3.85,
+  val targetSks: Int = 21
+) {
+  val displayName: String
+    get() = "Semester $semesterNumber ($term $academicYear)"
+}
+
 data class AcademicCourse(
   val id: String,
   val code: String,       // e.g. "SO", "PW", "SD", "AI"
   val name: String,       // e.g. "Sistem Operasi"
-  val colorHex: Long = 0xFF4F46E5
+  val colorHex: Long = 0xFF4F46E5,
+  val semesterId: String = "sem_5",
+  val lecturer: String = "Dosen Pengampu",
+  val sks: Int = 3,
+  val scheduleDay: String = "Senin",
+  val scheduleTime: String = "08:00 - 10:30",
+  val classRoom: String = "Lab Komputer",
+  val totalStudyMinutes: Int = 120
 )
 
 object AcademicCourseDefaults {
+  val PRESET_SEMESTERS = listOf(
+    AcademicSemester("sem_1", 1, "2024/2025", "Ganjil", isCurrent = false, targetGpa = 3.75, targetSks = 20),
+    AcademicSemester("sem_2", 2, "2024/2025", "Genap", isCurrent = false, targetGpa = 3.80, targetSks = 20),
+    AcademicSemester("sem_3", 3, "2025/2026", "Ganjil", isCurrent = false, targetGpa = 3.80, targetSks = 22),
+    AcademicSemester("sem_4", 4, "2025/2026", "Genap", isCurrent = false, targetGpa = 3.85, targetSks = 22),
+    AcademicSemester("sem_5", 5, "2026/2027", "Ganjil", isCurrent = true, targetGpa = 3.85, targetSks = 21),
+    AcademicSemester("sem_6", 6, "2026/2027", "Genap", isCurrent = false, targetGpa = 3.90, targetSks = 20),
+    AcademicSemester("sem_7", 7, "2027/2028", "Ganjil", isCurrent = false, targetGpa = 3.90, targetSks = 18),
+    AcademicSemester("sem_8", 8, "2027/2028", "Genap", isCurrent = false, targetGpa = 4.00, targetSks = 12)
+  )
+
   val PRESET_COURSES = listOf(
-    AcademicCourse("c_so", "SO", "Sistem Operasi", 0xFF10B981),
-    AcademicCourse("c_pw", "PW", "Pemrograman Web", 0xFF4F46E5),
-    AcademicCourse("c_sd", "SD", "Struktur Data", 0xFFF59E0B),
-    AcademicCourse("c_ai", "AI", "Kecerdasan Buatan", 0xFF8B5CF6),
-    AcademicCourse("c_bd", "BD", "Basis Data", 0xFF0284C7)
+    AcademicCourse("c_so", "SO", "Sistem Operasi", 0xFF10B981, "sem_5", "Dr. Hendra Wijaya", 3, "Senin", "08:00 - 10:30", "Lab Sistem 1"),
+    AcademicCourse("c_pw", "PW", "Pemrograman Web Lanjut", 0xFF4F46E5, "sem_5", "Rina Fitriani, M.T.", 3, "Selasa", "10:30 - 13:00", "Lab Komputer 3"),
+    AcademicCourse("c_sd", "SD", "Struktur Data & Algoritma", 0xFFF59E0B, "sem_5", "Bambang Sudibyo, Ph.D.", 4, "Rabu", "08:00 - 11:30", "Gedung D.204"),
+    AcademicCourse("c_ai", "AI", "Kecerdasan Buatan", 0xFF8B5CF6, "sem_5", "Prof. Agus Mulyana", 3, "Kamis", "13:00 - 15:30", "Ruang Multimedia"),
+    AcademicCourse("c_bd", "BD", "Basis Data Terdistribusi", 0xFF0284C7, "sem_5", "Dra. Siti Nurhaliza, M.Kom", 3, "Jumat", "09:00 - 11:30", "Lab Basis Data")
   )
 
   val PALETTE = listOf(

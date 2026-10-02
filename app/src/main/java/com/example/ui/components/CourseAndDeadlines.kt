@@ -74,7 +74,8 @@ fun CourseSelectionStrip(
   selectedCourseName: String?,
   onSelectCourse: (String?) -> Unit,
   onAddNewCourse: (AcademicCourse) -> Unit,
-  modifier: Modifier = Modifier
+  modifier: Modifier = Modifier,
+  onOpenCourseManager: (() -> Unit)? = null
 ) {
   val context = LocalContext.current
   val haptic = LocalHapticFeedback.current
@@ -87,13 +88,39 @@ fun CourseSelectionStrip(
       horizontalArrangement = Arrangement.SpaceBetween,
       verticalAlignment = Alignment.CenterVertically
     ) {
-      Text(
-        text = "MATA KULIAH (COURSE)",
-        fontSize = 10.5.sp,
-        fontWeight = FontWeight.Bold,
-        color = BrandSecondary,
-        letterSpacing = 0.8.sp
-      )
+      Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+      ) {
+        Text(
+          text = "MATA KULIAH (COURSE)",
+          fontSize = 10.5.sp,
+          fontWeight = FontWeight.Bold,
+          color = BrandSecondary,
+          letterSpacing = 0.8.sp
+        )
+        if (onOpenCourseManager != null) {
+          Surface(
+            shape = RoundedCornerShape(4.dp),
+            color = BrandCanvas,
+            border = BorderStroke(0.75.dp, LinearBorderHairline),
+            modifier = Modifier
+              .clip(RoundedCornerShape(4.dp))
+              .clickable {
+                HapticEngine.selection(context, haptic)
+                onOpenCourseManager()
+              }
+          ) {
+            Text(
+              text = "Kelola Matkul",
+              fontSize = 9.5.sp,
+              fontWeight = FontWeight.Bold,
+              color = BrandOlive,
+              modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+            )
+          }
+        }
+      }
       if (selectedCourseName != null) {
         Text(
           text = "Hapus Pilihan",

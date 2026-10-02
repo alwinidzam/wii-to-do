@@ -94,7 +94,8 @@ fun ScheduleScreen(
   onFocusMiniPlayerClick: () -> Unit,
   onToggleTimer: () -> Unit,
   modifier: Modifier = Modifier,
-  onCompleteSprint: () -> Unit = {}
+  onCompleteSprint: () -> Unit = {},
+  userProfile: com.example.data.model.UserProfile? = null
 ) {
   val haptic = LocalHapticFeedback.current
   val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -119,7 +120,8 @@ fun ScheduleScreen(
       UnifiedTopAppBar(
         title = "wii to do",
         subtitle = "jadwal & komitmen",
-        showVerifiedBadge = false,
+        showVerifiedBadge = (userProfile?.resolvedBadgeTier != null && userProfile.resolvedBadgeTier != com.example.data.model.VerifiedBadgeTier.NONE),
+        verifiedTier = userProfile?.resolvedBadgeTier ?: com.example.data.model.VerifiedBadgeTier.NONE,
         actions = {
           // Segmented Day/Week Toggle
           Surface(

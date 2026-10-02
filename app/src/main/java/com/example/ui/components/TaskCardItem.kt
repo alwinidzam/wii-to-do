@@ -71,6 +71,7 @@ import com.example.data.model.KanbanColumn
 import com.example.data.model.TaskItem
 import com.example.data.model.TaskPriority
 import com.example.ui.theme.AppleSystemBlue
+import com.example.ui.theme.AppleSystemIndigo
 import com.example.ui.theme.BrandBorder
 import com.example.ui.theme.BrandBorderLight
 import com.example.ui.theme.BrandCanvas
@@ -105,7 +106,8 @@ fun TaskCardItem(
   modifier: Modifier = Modifier,
   onDelete: (() -> Unit)? = null,
   isSelected: Boolean = false,
-  onSelect: () -> Unit = {}
+  onSelect: () -> Unit = {},
+  onStartFocus: (() -> Unit)? = null
 ) {
   val context = LocalContext.current
   val haptic = LocalHapticFeedback.current
@@ -244,7 +246,8 @@ fun TaskCardItem(
             HapticEngine.warning(context, haptic)
             isDeleting = true
           }
-        } else null
+        } else null,
+        onStartFocus = onStartFocus
       )
     }
   }
@@ -264,6 +267,7 @@ private fun TaskCardContent(
   onClick: () -> Unit,
   onSelect: () -> Unit,
   onDeleteClick: (() -> Unit)?,
+  onStartFocus: (() -> Unit)?,
   modifier: Modifier = Modifier
 ) {
   val context = LocalContext.current
@@ -616,6 +620,40 @@ private fun TaskCardContent(
               verticalAlignment = Alignment.CenterVertically,
               horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+              // 1-tap deep focus sprint
+              if (onStartFocus != null && !isDone) {
+                Surface(
+                  shape = RoundedCornerShape(6.dp),
+                  color = AppleSystemIndigo.copy(alpha = 0.12f),
+                  border = BorderStroke(0.75.dp, AppleSystemIndigo.copy(alpha = 0.35f)),
+                  modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .clickable {
+                      HapticEngine.selection(context, haptic)
+                      onStartFocus()
+                    }
+                ) {
+                  Row(
+                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                  ) {
+                    Icon(
+                      imageVector = Icons.Outlined.Schedule,
+                      contentDescription = null,
+                      tint = AppleSystemIndigo,
+                      modifier = Modifier.size(11.dp)
+                    )
+                    Text(
+                      text = "Fokus",
+                      fontSize = 11.sp,
+                      fontWeight = FontWeight.Bold,
+                      color = AppleSystemIndigo
+                    )
+                  }
+                }
+              }
+
               // 1-tap complete
               Surface(
                 shape = RoundedCornerShape(6.dp),

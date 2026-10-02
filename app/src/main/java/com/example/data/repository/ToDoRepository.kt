@@ -442,15 +442,70 @@ class ToDoRepository private constructor(
   private val _showLevelUpModal = MutableStateFlow(false)
   val showLevelUpModal: StateFlow<Boolean> = _showLevelUpModal.asStateFlow()
 
+  private val _academicSemesters = MutableStateFlow<List<com.example.data.model.AcademicSemester>>(
+    com.example.data.model.AcademicCourseDefaults.PRESET_SEMESTERS
+  )
+  val academicSemesters: StateFlow<List<com.example.data.model.AcademicSemester>> = _academicSemesters.asStateFlow()
+
   private val _academicCourses = MutableStateFlow<List<com.example.data.model.AcademicCourse>>(
     com.example.data.model.AcademicCourseDefaults.PRESET_COURSES
   )
   val academicCourses: StateFlow<List<com.example.data.model.AcademicCourse>> = _academicCourses.asStateFlow()
 
+  fun setActiveSemester(semesterId: String) {
+    _academicSemesters.value = _academicSemesters.value.map {
+      it.copy(isCurrent = (it.id == semesterId))
+    }
+    _userProfile.value = _userProfile.value.copy(activeSemesterId = semesterId)
+  }
+
+  fun addSemester(semesterNumber: Int, academicYear: String, term: String, targetGpa: Double, targetSks: Int) {
+    val newSem = com.example.data.model.AcademicSemester(
+      id = "sem_${System.currentTimeMillis()}",
+      semesterNumber = semesterNumber,
+      academicYear = academicYear,
+      term = term,
+      isCurrent = false,
+      targetGpa = targetGpa,
+      targetSks = targetSks
+    )
+    _academicSemesters.value = _academicSemesters.value + newSem
+  }
+
   fun addAcademicCourse(course: com.example.data.model.AcademicCourse) {
     if (_academicCourses.value.none { it.name.equals(course.name, ignoreCase = true) }) {
       _academicCourses.value = _academicCourses.value + course
     }
+  }
+
+  fun updateCourse(updated: com.example.data.model.AcademicCourse) {
+    _academicCourses.value = _academicCourses.value.map {
+      if (it.id == updated.id) updated else it
+    }
+  }
+
+  fun deleteCourse(courseId: String) {
+    _academicCourses.value = _academicCourses.value.filter { it.id != courseId }
+  }
+
+  fun updateStudentProfile(
+    name: String,
+    university: String,
+    program: String,
+    studentId: String,
+    targetGpa: Double,
+    targetSks: Int,
+    targetDailyFocusHours: Double
+  ) {
+    _userProfile.value = _userProfile.value.copy(
+      name = name,
+      university = university,
+      program = program,
+      studentId = studentId,
+      targetGpa = targetGpa,
+      targetSks = targetSks,
+      targetDailyFocusHours = targetDailyFocusHours
+    )
   }
 
   fun dismissCelebration() {
@@ -709,31 +764,49 @@ class ToDoRepository private constructor(
   fun startFocusSession(
     taskTitle: String,
     minutes: Int,
-    soundscape: String,
-    targetSubtask: String? = null
+    soundscape: String = "Brown Noise Calm",
+    targetSubtask: String? = null,
+    taskId: String? = null,
+    courseBadge: String? = null,
+    courseColorHex: Long? = null,
+    mode: com.example.data.model.FocusTimerMode = com.example.data.model.FocusTimerMode.POMODORO_25
   ) {
-    val task = _tasks.value.find { it.title.equals(taskTitle, ignoreCase = true) }
+    val task = taskId?.let { id -> _tasks.value.find { it.id == id } }
+      ?: _tasks.value.find { it.title.equals(taskTitle, ignoreCase = true) }
     val firstIncomplete = task?.subtasks?.firstOrNull { !it.isCompleted }?.title
-    val target = targetSubtask ?: firstIncomplete ?: "Sprint objective for $taskTitle"
+    val target = targetSubtask ?: firstIncomplete ?: "Fokus pengerjaan $taskTitle"
+
+    val durationSecs = if (mode == com.example.data.model.FocusTimerMode.FLOW_OPEN) 0 else minutes * 60
 
     _activeFocusSession.value = FocusSessionState(
-      taskTitle = taskTitle,
+      taskId = task?.id ?: taskId,
+      taskTitle = task?.title ?: taskTitle,
+      courseBadge = courseBadge ?: task?.courseName,
+      courseColorHex = courseColorHex,
       targetSubtask = target,
-      totalSeconds = minutes * 60,
-      remainingSeconds = minutes * 60,
+      totalSeconds = durationSecs,
+      remainingSeconds = durationSecs,
       isRunning = true,
-      soundscape = soundscape
+      soundscape = soundscape,
+      mode = mode
     )
   }
 
   fun tickFocusSecond(): Boolean {
     val current = _activeFocusSession.value ?: return false
-    if (!current.isRunning || current.remainingSeconds <= 0) return false
+    if (!current.isRunning) return false
 
+    if (current.mode == com.example.data.model.FocusTimerMode.FLOW_OPEN) {
+      val nextTotal = current.totalSeconds + 1
+      _activeFocusSession.value = current.copy(totalSeconds = nextTotal, remainingSeconds = nextTotal)
+      return false
+    }
+
+    if (current.remainingSeconds <= 0) return false
     val nextRemaining = current.remainingSeconds - 1
     return if (nextRemaining <= 0) {
       _activeFocusSession.value = current.copy(remainingSeconds = 0, isRunning = false)
-      completeCurrentSprint()
+      completeCurrentSprint(markTaskDone = false)
       true
     } else {
       _activeFocusSession.value = current.copy(remainingSeconds = nextRemaining)
@@ -756,15 +829,38 @@ class ToDoRepository private constructor(
     }
   }
 
-  fun completeCurrentSprint() {
+  fun switchFocusTimerMode(newMode: com.example.data.model.FocusTimerMode) {
+    val current = _activeFocusSession.value ?: return
+    val totalSecs = if (newMode == com.example.data.model.FocusTimerMode.FLOW_OPEN) 0 else newMode.defaultMinutes * 60
+    _activeFocusSession.value = current.copy(
+      mode = newMode,
+      totalSeconds = totalSecs,
+      remainingSeconds = totalSecs,
+      isRunning = false
+    )
+  }
+
+  fun completeCurrentSprint(markTaskDone: Boolean = false) {
     val session = _activeFocusSession.value
     awardXp(120)
     if (session != null) {
-      val loggedSecs = session.totalSeconds - session.remainingSeconds
-      val addedHours = (if (loggedSecs > 0) loggedSecs else session.totalSeconds) / 3600.0
+      val loggedSecs = if (session.mode == com.example.data.model.FocusTimerMode.FLOW_OPEN) {
+        session.totalSeconds
+      } else {
+        session.totalSeconds - session.remainingSeconds
+      }
+      val actualSecs = if (loggedSecs > 0) loggedSecs else session.totalSeconds
+      val addedHours = actualSecs / 3600.0
       val currentHours = _userProfile.value.focusHoursLogged.removeSuffix("h").toDoubleOrNull() ?: 18.5
       val updatedHours = String.format(java.util.Locale.US, "%.1fh", currentHours + addedHours)
       _userProfile.value = _userProfile.value.copy(focusHoursLogged = updatedHours)
+
+      session.taskId?.let { tid ->
+        if (markTaskDone) {
+          toggleTaskCompletion(tid)
+          awardXp(100)
+        }
+      }
     }
     _activeFocusSession.value = _activeFocusSession.value?.let {
       it.copy(remainingSeconds = 0, isRunning = false)

@@ -589,6 +589,7 @@ fun TaskDetailScreen(
           )
         }
 
+        val effortMins = if (task.estimatedEffortMinutes > 0) task.estimatedEffortMinutes else 25
         Button(
           onClick = {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -609,7 +610,7 @@ fun TaskDetailScreen(
           )
           Spacer(modifier = Modifier.width(6.dp))
           Text(
-            text = "Start Focus (15m)",
+            text = "Kerjakan ($effortMins min)",
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
             color = Color.White

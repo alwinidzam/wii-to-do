@@ -73,6 +73,7 @@ import com.example.ui.screens.SignInScreen
 import com.example.ui.screens.SignUpScreen
 import com.example.ui.screens.SocialShareStudioScreen
 import com.example.ui.screens.TaskDetailScreen
+import com.example.ui.sheets.AcademicCourseManagerBottomSheet
 import com.example.ui.sheets.AddSubTaskSheet
 import com.example.ui.sheets.AddTaskBottomSheet
 import com.example.ui.sheets.ScheduleBookingSheet
@@ -103,12 +104,14 @@ fun WiiToDoApp(
   val showLevelUpModal by viewModel.showLevelUpModal.collectAsState()
   val isAiGenerating by viewModel.isGeneratingAiSubtasks.collectAsState()
   val academicCourses by viewModel.academicCourses.collectAsState()
+  val academicSemesters by viewModel.academicSemesters.collectAsState()
   val deletedTasks by viewModel.deletedTasks.collectAsState()
 
   var selectedDetailTaskId by remember { mutableStateOf("task_contrast_matrix") }
   var subTaskSheetParentId by remember { mutableStateOf<String?>(null) }
   var scheduleBookingSlot by remember { mutableStateOf<Pair<String, String>?>(null) }
   var showAddTaskBottomSheet by remember { mutableStateOf(false) }
+  var showAcademicCourseManager by remember { mutableStateOf(false) }
 
   val coroutineScope = rememberCoroutineScope()
   val snackbarHostState = remember { SnackbarHostState() }
@@ -185,13 +188,17 @@ fun WiiToDoApp(
     else -> NavigationTab.HOME
   }
 
-  val isModalOrSheetOpen = showAddTaskBottomSheet || subTaskSheetParentId != null || scheduleBookingSlot != null
+  val isModalOrSheetOpen = showAddTaskBottomSheet || subTaskSheetParentId != null || scheduleBookingSlot != null || showAcademicCourseManager
 
   BackHandler(
     enabled = isModalOrSheetOpen ||
       !isPrimaryTab ||
       (isPrimaryTab && (tabHistory.size > 1 || pagerState.currentPage != 0))
   ) {
+    if (showAcademicCourseManager) {
+      showAcademicCourseManager = false
+      return@BackHandler
+    }
     if (showAddTaskBottomSheet) {
       showAddTaskBottomSheet = false
       return@BackHandler
@@ -303,7 +310,16 @@ fun WiiToDoApp(
                   deletedTasks = deletedTasks,
                   onRestoreTask = { id -> viewModel.restoreTask(id) },
                   onPermanentlyDeleteTask = { id -> viewModel.permanentlyDeleteTask(id) },
-                  onEmptyTrash = { viewModel.emptyTrash() }
+                  onEmptyTrash = { viewModel.emptyTrash() },
+                  onStartFocusTask = { task ->
+                    val effort = if (task.estimatedEffortMinutes > 0) task.estimatedEffortMinutes else 25
+                    viewModel.startFocusSession(
+                      taskTitle = task.title,
+                      minutes = effort,
+                      taskId = task.id,
+                      courseBadge = task.courseName
+                    )
+                  }
                 )
               }
 
@@ -320,7 +336,8 @@ fun WiiToDoApp(
                   },
                   onFocusMiniPlayerClick = { viewModel.navigateTo(AppDestination.ActiveFocus) },
                   onToggleTimer = { viewModel.toggleFocusTimerRunning() },
-                  onCompleteSprint = { viewModel.completeCurrentSprint() }
+                  onCompleteSprint = { viewModel.completeCurrentSprint() },
+                  userProfile = userProfile
                 )
               }
 
@@ -346,7 +363,8 @@ fun WiiToDoApp(
                       dueTime = "Today",
                       dueDate = "Today"
                     )
-                  }
+                  },
+                  userProfile = userProfile
                 )
               }
 
@@ -360,6 +378,7 @@ fun WiiToDoApp(
                   onViewLevelCelebration = { viewModel.triggerLevelUpModal() },
                   onSignOut = { viewModel.signOut() },
                   onOpenMilestoneJourney = { viewModel.navigateTo(AppDestination.MilestoneJourney) },
+                  onOpenAcademicManager = { showAcademicCourseManager = true },
                   currentLanguage = currentLanguage,
                   onLanguageSelected = { viewModel.setLanguage(it) }
                 )
@@ -397,8 +416,13 @@ fun WiiToDoApp(
                 onAiBreakdownClick = { viewModel.generateAiSubtasksForTask(currentTask.id) },
                 isAiGenerating = isAiGenerating,
                 onStartFocusClick = {
-                  val effort = if (currentTask.estimatedEffortMinutes > 0) currentTask.estimatedEffortMinutes else 15
-                  viewModel.startFocusSession(currentTask.title, effort)
+                  val effort = if (currentTask.estimatedEffortMinutes > 0) currentTask.estimatedEffortMinutes else 25
+                  viewModel.startFocusSession(
+                    taskTitle = currentTask.title,
+                    minutes = effort,
+                    taskId = currentTask.id,
+                    courseBadge = currentTask.courseName
+                  )
                 },
                 onRescheduleClick = { scheduleBookingSlot = Pair("16:00", "16:30") }
               )
@@ -439,13 +463,18 @@ fun WiiToDoApp(
           }
 
           AppDestination.ActiveFocus -> {
-            val session = activeFocus ?: com.example.data.model.FocusSessionState("Deep Work Focus", "Sprint")
+            val session = activeFocus ?: com.example.data.model.FocusSessionState(taskTitle = "Deep Work Focus")
+            val targetTask = tasks.find { it.id == session.taskId }
+            val liveSubtasks = targetTask?.subtasks ?: emptyList()
             ActiveFocusScreen(
               session = session,
+              subtasks = liveSubtasks,
+              onToggleSubTask = { subId -> session.taskId?.let { tid -> viewModel.toggleSubTask(tid, subId) } },
               onClose = { viewModel.navigateTo(AppDestination.Home) },
               onToggleTimer = { viewModel.toggleFocusTimerRunning() },
               onAddFiveMinutes = { viewModel.addFiveMinutesToFocus() },
-              onCompleteSprint = { viewModel.completeCurrentSprint() }
+              onSwitchMode = { mode -> viewModel.switchFocusTimerMode(mode) },
+              onCompleteSprint = { markTaskDone -> viewModel.completeCurrentSprint(markTaskDone) }
             )
           }
 
@@ -609,10 +638,16 @@ fun WiiToDoApp(
 
     // Modal Sheet 3: Add Task Bottom Sheet (triggered by FAB)
     if (showAddTaskBottomSheet) {
+      val semesterCourses = academicCourses.filter { it.semesterId == userProfile.activeSemesterId }
+        .ifEmpty { academicCourses }
       AddTaskBottomSheet(
         onDismiss = { showAddTaskBottomSheet = false },
-        courses = academicCourses,
+        courses = semesterCourses,
         onAddNewCourse = { viewModel.addAcademicCourse(it) },
+        onOpenCourseManager = {
+          showAddTaskBottomSheet = false
+          showAcademicCourseManager = true
+        },
         onTaskCreated = { title, desc, cat, proj, prio, dueTime, dueDate, courseName ->
           viewModel.addTask(title, desc, cat, proj, prio, dueTime, dueDate, courseName)
           showAddTaskBottomSheet = false
@@ -621,6 +656,22 @@ fun WiiToDoApp(
             snackbarHostState.showSnackbar("Task added to $targetLabel")
           }
         }
+      )
+    }
+
+    // Modal Sheet 4: Academic Course & Multi-Semester Manager
+    if (showAcademicCourseManager) {
+      AcademicCourseManagerBottomSheet(
+        semesters = academicSemesters,
+        activeSemesterId = userProfile.activeSemesterId,
+        courses = academicCourses,
+        targetSks = userProfile.targetSks,
+        targetGpa = userProfile.targetGpa,
+        onSelectSemester = { semId -> viewModel.setActiveSemester(semId) },
+        onAddCourse = { course -> viewModel.addAcademicCourse(course) },
+        onDeleteCourse = { courseId -> viewModel.deleteCourse(courseId) },
+        onUpdateTargets = { gpa, sks -> viewModel.updateStudentProfile(targetGpa = gpa, targetSks = sks) },
+        onDismiss = { showAcademicCourseManager = false }
       )
     }
 

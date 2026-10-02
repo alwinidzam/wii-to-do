@@ -125,7 +125,8 @@ fun AddTaskBottomSheet(
   ) -> Unit,
   modifier: Modifier = Modifier,
   courses: List<AcademicCourse> = AcademicCourseDefaults.PRESET_COURSES,
-  onAddNewCourse: (AcademicCourse) -> Unit = {}
+  onAddNewCourse: (AcademicCourse) -> Unit = {},
+  onOpenCourseManager: (() -> Unit)? = null
 ) {
   val context = LocalContext.current
   val haptic = LocalHapticFeedback.current
@@ -484,6 +485,7 @@ fun AddTaskBottomSheet(
             isCourseDrawerOpen = false
           },
           onAddNewCourse = onAddNewCourse,
+          onOpenCourseManager = onOpenCourseManager,
           modifier = Modifier.padding(vertical = 4.dp)
         )
       }

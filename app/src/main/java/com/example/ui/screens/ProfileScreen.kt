@@ -55,6 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.UserProfile
+import com.example.data.model.VerifiedBadgeTier
 import com.example.ui.components.UnifiedTopAppBar
 import com.example.ui.components.VerifiedBadgeIcon
 import com.example.ui.components.WiiBrandLogo
@@ -91,6 +92,7 @@ fun ProfileScreen(
   modifier: Modifier = Modifier,
   onToggleSounds: (() -> Unit)? = null,
   onOpenMilestoneJourney: () -> Unit = onViewLevelCelebration,
+  onOpenAcademicManager: (() -> Unit)? = null,
   currentLanguage: AppLanguage = AppLanguage.ID,
   onLanguageSelected: (AppLanguage) -> Unit = {}
 ) {
@@ -117,7 +119,8 @@ fun ProfileScreen(
     UnifiedTopAppBar(
       title = "wii to do",
       subtitle = if (currentLanguage == AppLanguage.ID) "pengaturan & profil" else "settings & profile",
-      showVerifiedBadge = false,
+      showVerifiedBadge = (profile.resolvedBadgeTier != VerifiedBadgeTier.NONE),
+      verifiedTier = profile.resolvedBadgeTier,
       actions = {
         // Language Toggle Pill
         Surface(
@@ -203,9 +206,9 @@ fun ProfileScreen(
                 color = BrandCharcoal,
                 letterSpacing = (-0.01).sp
               )
-              if (profile.isVerified) {
+              if (profile.resolvedBadgeTier != VerifiedBadgeTier.NONE) {
                 Spacer(modifier = Modifier.width(6.dp))
-                VerifiedBadgeIcon(size = 18.dp)
+                VerifiedBadgeIcon(size = 18.dp, tier = profile.resolvedBadgeTier)
               }
             }
 
@@ -222,6 +225,30 @@ fun ProfileScreen(
               fontSize = 11.sp,
               color = BrandSecondary.copy(alpha = 0.8f)
             )
+
+            if (profile.resolvedBadgeTier != VerifiedBadgeTier.NONE) {
+              Spacer(modifier = Modifier.height(6.dp))
+              val tierColor = Color(profile.resolvedBadgeTier.primaryColorHex)
+              Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = tierColor.copy(alpha = 0.10f),
+                border = BorderStroke(0.75.dp, tierColor.copy(alpha = 0.35f))
+              ) {
+                Row(
+                  modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                  verticalAlignment = Alignment.CenterVertically,
+                  horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                  VerifiedBadgeIcon(size = 13.dp, tier = profile.resolvedBadgeTier)
+                  Text(
+                    text = profile.resolvedBadgeTier.title,
+                    fontSize = 10.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = tierColor
+                  )
+                }
+              }
+            }
           }
         }
       }
@@ -372,10 +399,96 @@ fun ProfileScreen(
       }
     }
 
-    // 5. Academic Workspace Section
+    // 5. Academic Workspace & Semester Management Section
+    item {
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Text(
+          text = "MANAJEMEN AKADEMIK & SEMESTER",
+          fontSize = 11.sp,
+          fontWeight = FontWeight.Bold,
+          color = BrandSecondary,
+          letterSpacing = 0.8.sp
+        )
+        if (onOpenAcademicManager != null) {
+          Text(
+            text = "Kelola Matkul",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = BrandOlive,
+            modifier = Modifier.clickable {
+              haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+              onOpenAcademicManager()
+            }
+          )
+        }
+      }
+    }
+
+    item {
+      Surface(
+        modifier = Modifier
+          .fillMaxWidth()
+          .clip(RoundedCornerShape(14.dp))
+          .clickable {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            onOpenAcademicManager?.invoke()
+          },
+        shape = RoundedCornerShape(14.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, BrandBorder)
+      ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = "Semester Aktif: Semester ${profile.activeSemesterId.replace("sem_", "")}",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = BrandCharcoal
+              )
+              Text(
+                text = "Target IPK: ${String.format(java.util.Locale.US, "%.2f", profile.targetGpa)} • Kapasitas: ${profile.targetSks} SKS",
+                fontSize = 12.sp,
+                color = BrandSecondary
+              )
+            }
+            Icon(
+              imageVector = Icons.Default.ChevronRight,
+              contentDescription = null,
+              tint = BrandSecondary
+            )
+          }
+
+          Spacer(modifier = Modifier.height(10.dp))
+          HorizontalDivider(color = BrandBorderLight, thickness = 1.dp)
+          Spacer(modifier = Modifier.height(10.dp))
+
+          SettingToggleRow(
+            icon = Icons.Default.School,
+            title = "Campus Calendar Sync",
+            subtitle = "Sinkronisasi otomatis tugas & jadwal kuliah Canvas/Google",
+            checked = profile.campusSyncEnabled,
+            onCheckedChange = {
+              haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+              onToggleCalendarSync()
+            }
+          )
+        }
+      }
+    }
+
+    // 5B. Personal Study & Target Focus Section
     item {
       Text(
-        text = "ACADEMIC WORKSPACE",
+        text = "TARGET STUDI & FOKUS PRIBADI",
         fontSize = 11.sp,
         fontWeight = FontWeight.Bold,
         color = BrandSecondary,
@@ -390,17 +503,76 @@ fun ProfileScreen(
         color = Color.White,
         border = BorderStroke(1.dp, BrandBorder)
       ) {
-        Column(modifier = Modifier.padding(horizontal = 14.dp)) {
-          SettingToggleRow(
-            icon = Icons.Default.School,
-            title = "Campus Calendar Sync",
-            subtitle = "Sync with University Canvas & Google Calendar",
-            checked = profile.campusSyncEnabled,
-            onCheckedChange = {
-              haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-              onToggleCalendarSync()
+        Column(modifier = Modifier.padding(14.dp)) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = "Target Fokus Harian",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = BrandCharcoal
+              )
+              Text(
+                text = "Komitmen waktu fokus mendalam per hari",
+                fontSize = 11.sp,
+                color = BrandSecondary
+              )
             }
-          )
+            Surface(
+              shape = RoundedCornerShape(8.dp),
+              color = BrandPillBg,
+              border = BorderStroke(1.dp, BrandBorderLight)
+            ) {
+              Text(
+                text = "${profile.targetDailyFocusHours} jam / hari",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = BrandCharcoal,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+              )
+            }
+          }
+
+          Spacer(modifier = Modifier.height(10.dp))
+          HorizontalDivider(color = BrandBorderLight, thickness = 1.dp)
+          Spacer(modifier = Modifier.height(10.dp))
+
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = "Target Beban SKS Semester Ini",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = BrandCharcoal
+              )
+              Text(
+                text = "Batas maksimum kredit mata kuliah",
+                fontSize = 11.sp,
+                color = BrandSecondary
+              )
+            }
+            Surface(
+              shape = RoundedCornerShape(8.dp),
+              color = BrandPillBg,
+              border = BorderStroke(1.dp, BrandBorderLight)
+            ) {
+              Text(
+                text = "${profile.targetSks} SKS",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = BrandCharcoal,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+              )
+            }
+          }
         }
       }
     }

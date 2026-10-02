@@ -121,7 +121,8 @@ fun ProjectsScreen(
   onUpdateKanbanStatus: (String, KanbanColumn) -> Unit = { _, _ -> },
   onToggleTaskComplete: (String) -> Unit = {},
   onAddProject: (String, String, String) -> Unit = { _, _, _ -> },
-  onAddTaskToProject: (String, String, String) -> Unit = { _, _, _ -> }
+  onAddTaskToProject: (String, String, String) -> Unit = { _, _, _ -> },
+  userProfile: com.example.data.model.UserProfile? = null
 ) {
   val context = LocalContext.current
   val haptic = LocalHapticFeedback.current
@@ -149,7 +150,8 @@ fun ProjectsScreen(
       UnifiedTopAppBar(
         title = "wii to do",
         subtitle = "${projects.size} proyek aktif • $totalProjectTasks tugas",
-        showVerifiedBadge = false,
+        showVerifiedBadge = (userProfile?.resolvedBadgeTier != null && userProfile.resolvedBadgeTier != com.example.data.model.VerifiedBadgeTier.NONE),
+        verifiedTier = userProfile?.resolvedBadgeTier ?: com.example.data.model.VerifiedBadgeTier.NONE,
         actions = {
           // New Project Button
           Surface(

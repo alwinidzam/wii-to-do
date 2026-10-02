@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.VerifiedBadgeTier
 import com.example.ui.theme.BrandBorder
 import com.example.ui.theme.BrandCanvas
 import com.example.ui.theme.BrandCharcoal
@@ -40,6 +41,7 @@ fun UnifiedTopAppBar(
   title: String = "wii to do",
   subtitle: String? = null,
   showVerifiedBadge: Boolean = false,
+  verifiedTier: VerifiedBadgeTier = if (showVerifiedBadge) VerifiedBadgeTier.BLUE else VerifiedBadgeTier.NONE,
   subtitleSuffix: String? = null,
   leadingLogoSize: Dp = 32.dp,
   customLeading: (@Composable () -> Unit)? = null,
@@ -100,8 +102,8 @@ fun UnifiedTopAppBar(
                 letterSpacing = 0.2.sp,
                 lineHeight = 14.sp
               )
-              if (showVerifiedBadge) {
-                VerifiedBadgeIcon(size = 13.5.dp)
+              if (verifiedTier != VerifiedBadgeTier.NONE) {
+                VerifiedBadgeIcon(tier = verifiedTier, size = 13.5.dp)
               }
               if (subtitleSuffix != null) {
                 Text(

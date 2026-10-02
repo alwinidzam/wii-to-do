@@ -57,9 +57,38 @@ class ToDoViewModel(
   val showLevelUpModal: StateFlow<Boolean> = repository.showLevelUpModal
   val shareCardConfig: StateFlow<ShareCardConfig> = repository.shareCardConfig
   val academicCourses: StateFlow<List<com.example.data.model.AcademicCourse>> = repository.academicCourses
+  val academicSemesters: StateFlow<List<com.example.data.model.AcademicSemester>> = repository.academicSemesters
 
   fun addAcademicCourse(course: com.example.data.model.AcademicCourse) {
     repository.addAcademicCourse(course)
+  }
+
+  fun updateCourse(course: com.example.data.model.AcademicCourse) {
+    repository.updateCourse(course)
+  }
+
+  fun deleteCourse(courseId: String) {
+    repository.deleteCourse(courseId)
+  }
+
+  fun setActiveSemester(semesterId: String) {
+    repository.setActiveSemester(semesterId)
+  }
+
+  fun addSemester(semesterNumber: Int, academicYear: String, term: String, targetGpa: Double, targetSks: Int) {
+    repository.addSemester(semesterNumber, academicYear, term, targetGpa, targetSks)
+  }
+
+  fun updateStudentProfile(
+    name: String,
+    university: String,
+    program: String,
+    studentId: String,
+    targetGpa: Double,
+    targetSks: Int,
+    targetDailyFocusHours: Double
+  ) {
+    repository.updateStudentProfile(name, university, program, studentId, targetGpa, targetSks, targetDailyFocusHours)
   }
 
   private val _currentDestination = MutableStateFlow<AppDestination>(
@@ -307,8 +336,17 @@ class ToDoViewModel(
     repository.bookScheduleSlot(startTime, endTime, title, category, isDeepWork)
   }
 
-  fun startFocusSession(taskTitle: String, minutes: Int, soundscape: String = "") {
-    repository.startFocusSession(taskTitle, minutes, soundscape)
+  fun startFocusSession(
+    taskTitle: String,
+    minutes: Int,
+    soundscape: String = "Brown Noise Calm",
+    targetSubtask: String? = null,
+    taskId: String? = null,
+    courseBadge: String? = null,
+    courseColorHex: Long? = null,
+    mode: com.example.data.model.FocusTimerMode = com.example.data.model.FocusTimerMode.POMODORO_25
+  ) {
+    repository.startFocusSession(taskTitle, minutes, soundscape, targetSubtask, taskId, courseBadge, courseColorHex, mode)
     navigateTo(AppDestination.ActiveFocus)
   }
 
@@ -320,8 +358,12 @@ class ToDoViewModel(
     repository.addFiveMinutesToFocus()
   }
 
-  fun completeCurrentSprint() {
-    repository.completeCurrentSprint()
+  fun switchFocusTimerMode(mode: com.example.data.model.FocusTimerMode) {
+    repository.switchFocusTimerMode(mode)
+  }
+
+  fun completeCurrentSprint(markTaskDone: Boolean = false) {
+    repository.completeCurrentSprint(markTaskDone)
     navigateTo(AppDestination.FocusSummary)
   }
 

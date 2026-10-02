@@ -70,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.TaskItem
 import com.example.data.model.UserProfile
+import com.example.data.model.VerifiedBadgeTier
 import com.example.ui.components.DateStripSelector
 import com.example.ui.components.LinearBorderHairline
 import com.example.ui.components.LinearDoneGreen
@@ -126,7 +127,8 @@ fun HomeScreen(
   deletedTasks: List<TaskItem> = emptyList(),
   onRestoreTask: (String) -> Unit = {},
   onPermanentlyDeleteTask: (String) -> Unit = {},
-  onEmptyTrash: () -> Unit = {}
+  onEmptyTrash: () -> Unit = {},
+  onStartFocusTask: ((TaskItem) -> Unit)? = null
 ) {
   val context = LocalContext.current
   val haptic = LocalHapticFeedback.current
@@ -208,7 +210,8 @@ fun HomeScreen(
     UnifiedTopAppBar(
       title = strings.appName,
       subtitle = "$greeting, $userName",
-      showVerifiedBadge = (userProfile?.isVerified == true),
+      showVerifiedBadge = (userProfile?.resolvedBadgeTier != null && userProfile.resolvedBadgeTier != VerifiedBadgeTier.NONE),
+      verifiedTier = userProfile?.resolvedBadgeTier ?: VerifiedBadgeTier.NONE,
       subtitleSuffix = " • $totalRemaining ${strings.remaining}",
       actions = {
         // Search Toggle Button (34dp)
@@ -657,7 +660,8 @@ fun HomeScreen(
             isSelected = (selectedTaskId == task.id),
             onSelect = {
               selectedTaskId = if (selectedTaskId == task.id) null else task.id
-            }
+            },
+            onStartFocus = onStartFocusTask?.let { startFn -> { startFn(task) } }
           )
         }
 
