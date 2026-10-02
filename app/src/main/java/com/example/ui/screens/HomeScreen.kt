@@ -351,8 +351,6 @@ fun HomeScreen(
             )
           }
         }
-      }
-    }
 
     // 2. High-Efficiency Content Feed (Immediate Task Access)
     LazyColumn(
@@ -709,6 +707,7 @@ fun HomeScreen(
             )
           }
         }
+      }
 
       // Minimalist Footer
       item {
