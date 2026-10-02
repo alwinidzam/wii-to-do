@@ -930,6 +930,48 @@ fun ProjectsScreen(
                     )
                   }
                 }
+                KanbanColumn.BACKLOG -> {
+                  Surface(
+                    modifier = Modifier
+                      .clip(RoundedCornerShape(6.dp))
+                      .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onUpdateKanbanStatus(task.id, KanbanColumn.TO_DO)
+                      },
+                    shape = RoundedCornerShape(6.dp),
+                    color = BrandCharcoal
+                  ) {
+                    Text(
+                      text = "Move to To Do →",
+                      fontSize = 11.sp,
+                      fontWeight = FontWeight.SemiBold,
+                      color = Color.White,
+                      modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                    )
+                  }
+                }
+                KanbanColumn.CANCELED -> {
+                  Surface(
+                    modifier = Modifier
+                      .clip(RoundedCornerShape(6.dp))
+                      .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onUpdateKanbanStatus(task.id, KanbanColumn.TO_DO)
+                      },
+                    shape = RoundedCornerShape(6.dp),
+                    color = BrandPillBg,
+                    border = BorderStroke(1.dp, BrandBorderLight)
+                  ) {
+                    Text(
+                      text = "↺ Restore",
+                      fontSize = 11.sp,
+                      fontWeight = FontWeight.Medium,
+                      color = BrandSecondary,
+                      modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                    )
+                  }
+                }
+                else -> {}
               }
             }
           }
