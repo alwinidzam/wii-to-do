@@ -379,6 +379,13 @@ fun WiiToDoApp(
                   onSignOut = { viewModel.signOut() },
                   onOpenMilestoneJourney = { viewModel.navigateTo(AppDestination.MilestoneJourney) },
                   onOpenAcademicManager = { showAcademicCourseManager = true },
+                  onUpdatePersonalTargets = { gpa, sks, focusHours ->
+                    viewModel.updateStudentProfile(
+                      targetGpa = gpa,
+                      targetSks = sks,
+                      targetDailyFocusHours = focusHours
+                    )
+                  },
                   currentLanguage = currentLanguage,
                   onLanguageSelected = { viewModel.setLanguage(it) }
                 )

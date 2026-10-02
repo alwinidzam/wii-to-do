@@ -80,13 +80,13 @@ class ToDoViewModel(
   }
 
   fun updateStudentProfile(
-    name: String,
-    university: String,
-    program: String,
-    studentId: String,
-    targetGpa: Double,
-    targetSks: Int,
-    targetDailyFocusHours: Double
+    name: String? = null,
+    university: String? = null,
+    program: String? = null,
+    studentId: String? = null,
+    targetGpa: Double? = null,
+    targetSks: Int? = null,
+    targetDailyFocusHours: Double? = null
   ) {
     repository.updateStudentProfile(name, university, program, studentId, targetGpa, targetSks, targetDailyFocusHours)
   }

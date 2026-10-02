@@ -489,23 +489,26 @@ class ToDoRepository private constructor(
   }
 
   fun updateStudentProfile(
-    name: String,
-    university: String,
-    program: String,
-    studentId: String,
-    targetGpa: Double,
-    targetSks: Int,
-    targetDailyFocusHours: Double
+    name: String? = null,
+    university: String? = null,
+    program: String? = null,
+    studentId: String? = null,
+    targetGpa: Double? = null,
+    targetSks: Int? = null,
+    targetDailyFocusHours: Double? = null
   ) {
-    _userProfile.value = _userProfile.value.copy(
-      name = name,
-      university = university,
-      program = program,
-      studentId = studentId,
-      targetGpa = targetGpa,
-      targetSks = targetSks,
-      targetDailyFocusHours = targetDailyFocusHours
+    val current = _userProfile.value
+    val updated = current.copy(
+      name = name ?: current.name,
+      university = university ?: current.university,
+      program = program ?: current.program,
+      studentId = studentId ?: current.studentId,
+      targetGpa = targetGpa ?: current.targetGpa,
+      targetSks = targetSks ?: current.targetSks,
+      targetDailyFocusHours = targetDailyFocusHours ?: current.targetDailyFocusHours
     )
+    _userProfile.value = updated
+    scope.launch { try { db?.userProfileDao()?.insertOrUpdateProfile(updated.toEntity()) } catch (_: Exception) {} }
   }
 
   fun dismissCelebration() {

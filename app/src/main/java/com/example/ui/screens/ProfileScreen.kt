@@ -33,15 +33,24 @@ import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -79,6 +88,7 @@ import com.example.ui.theme.BrandTagBg
 import com.example.ui.theme.BrandTerracotta
 import com.example.ui.theme.BrandTerracottaBg
 import com.example.ui.theme.AppleSystemGreen
+import com.example.ui.theme.AppleSystemBlue
 
 @Composable
 fun ProfileScreen(
@@ -93,12 +103,14 @@ fun ProfileScreen(
   onToggleSounds: (() -> Unit)? = null,
   onOpenMilestoneJourney: () -> Unit = onViewLevelCelebration,
   onOpenAcademicManager: (() -> Unit)? = null,
+  onUpdatePersonalTargets: ((Double, Int, Double) -> Unit)? = null,
   currentLanguage: AppLanguage = AppLanguage.ID,
   onLanguageSelected: (AppLanguage) -> Unit = {}
 ) {
   val context = LocalContext.current
   val haptic = LocalHapticFeedback.current
   val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+  var showTargetDialog by remember { mutableStateOf(false) }
 
   val avatarInitials = remember(profile.name) {
     val words = profile.name.trim().split("\\s+".toRegex()).filter { it.isNotEmpty() }
@@ -487,18 +499,57 @@ fun ProfileScreen(
 
     // 5B. Personal Study & Target Focus Section
     item {
-      Text(
-        text = "TARGET STUDI & FOKUS PRIBADI",
-        fontSize = 11.sp,
-        fontWeight = FontWeight.Bold,
-        color = BrandSecondary,
-        letterSpacing = 0.8.sp
-      )
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Text(
+          text = if (currentLanguage == AppLanguage.ID) "TARGET STUDI & FOKUS PRIBADI" else "STUDY & FOCUS TARGETS",
+          fontSize = 11.sp,
+          fontWeight = FontWeight.Bold,
+          color = BrandSecondary,
+          letterSpacing = 0.8.sp
+        )
+        Surface(
+          shape = RoundedCornerShape(8.dp),
+          color = Color(0xFFF0F5FF),
+          border = BorderStroke(1.dp, Color(0xFFCCE0FF)),
+          modifier = Modifier.clickable {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            showTargetDialog = true
+          }
+        ) {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+          ) {
+            Icon(
+              imageVector = Icons.Default.Edit,
+              contentDescription = null,
+              tint = AppleSystemBlue,
+              modifier = Modifier.size(12.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+              text = if (currentLanguage == AppLanguage.ID) "Ubah Target" else "Edit Targets",
+              fontSize = 11.sp,
+              fontWeight = FontWeight.SemiBold,
+              color = AppleSystemBlue
+            )
+          }
+        }
+      }
     }
 
     item {
       Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+          .fillMaxWidth()
+          .clickable {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            showTargetDialog = true
+          },
         shape = RoundedCornerShape(14.dp),
         color = Color.White,
         border = BorderStroke(1.dp, BrandBorder)
@@ -566,6 +617,43 @@ fun ProfileScreen(
             ) {
               Text(
                 text = "${profile.targetSks} SKS",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = BrandCharcoal,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+              )
+            }
+          }
+
+          Spacer(modifier = Modifier.height(10.dp))
+          HorizontalDivider(color = BrandBorderLight, thickness = 1.dp)
+          Spacer(modifier = Modifier.height(10.dp))
+
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = "Target IPK Kumulatif",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = BrandCharcoal
+              )
+              Text(
+                text = "Standar pencapaian akademik pribadi",
+                fontSize = 11.sp,
+                color = BrandSecondary
+              )
+            }
+            Surface(
+              shape = RoundedCornerShape(8.dp),
+              color = BrandPillBg,
+              border = BorderStroke(1.dp, BrandBorderLight)
+            ) {
+              Text(
+                text = String.format(java.util.Locale.US, "%.2f", profile.targetGpa),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = BrandCharcoal,
@@ -745,6 +833,105 @@ fun ProfileScreen(
     }
   }
 }
+
+  if (showTargetDialog) {
+    EditPersonalTargetsDialog(
+      initialGpa = profile.targetGpa,
+      initialSks = profile.targetSks,
+      initialFocusHours = profile.targetDailyFocusHours,
+      currentLanguage = currentLanguage,
+      onDismiss = { showTargetDialog = false },
+      onSave = { gpa, sks, focusHours ->
+        onUpdatePersonalTargets?.invoke(gpa, sks, focusHours)
+        showTargetDialog = false
+      }
+    )
+  }
+}
+
+@Composable
+fun EditPersonalTargetsDialog(
+  initialGpa: Double,
+  initialSks: Int,
+  initialFocusHours: Double,
+  currentLanguage: AppLanguage,
+  onDismiss: () -> Unit,
+  onSave: (Double, Int, Double) -> Unit
+) {
+  var gpaText by remember { mutableStateOf(if (initialGpa > 0.0) String.format(java.util.Locale.US, "%.2f", initialGpa) else "3.85") }
+  var sksText by remember { mutableStateOf(if (initialSks > 0) initialSks.toString() else "21") }
+  var focusHoursText by remember { mutableStateOf(if (initialFocusHours > 0.0) String.format(java.util.Locale.US, "%.1f", initialFocusHours) else "4.0") }
+
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = {
+      Text(
+        text = if (currentLanguage == AppLanguage.ID) "Ubah Target Personal" else "Edit Personal Targets",
+        fontSize = 16.sp,
+        fontWeight = FontWeight.Bold,
+        color = BrandCharcoal
+      )
+    },
+    text = {
+      Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+          text = if (currentLanguage == AppLanguage.ID)
+            "Sesuaikan target akademik dan komitmen fokus harian Anda."
+          else
+            "Customize your academic goals and daily focus commitments.",
+          fontSize = 12.sp,
+          color = BrandSecondary,
+          modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        OutlinedTextField(
+          value = gpaText,
+          onValueChange = { gpaText = it },
+          label = { Text(if (currentLanguage == AppLanguage.ID) "Target IPK (misal 3.85)" else "Target GPA (e.g. 3.85)") },
+          singleLine = true,
+          modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        OutlinedTextField(
+          value = sksText,
+          onValueChange = { sksText = it },
+          label = { Text(if (currentLanguage == AppLanguage.ID) "Target SKS (misal 21)" else "Target Credits / SKS (e.g. 21)") },
+          singleLine = true,
+          modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        OutlinedTextField(
+          value = focusHoursText,
+          onValueChange = { focusHoursText = it },
+          label = { Text(if (currentLanguage == AppLanguage.ID) "Target Jam Fokus/Hari (misal 4.0)" else "Daily Focus Hours (e.g. 4.0)") },
+          singleLine = true,
+          modifier = Modifier.fillMaxWidth()
+        )
+      }
+    },
+    confirmButton = {
+      Button(
+        onClick = {
+          val gpa = gpaText.toDoubleOrNull() ?: initialGpa
+          val sks = sksText.toIntOrNull() ?: initialSks
+          val focusHours = focusHoursText.toDoubleOrNull() ?: initialFocusHours
+          onSave(gpa, sks, focusHours)
+        },
+        colors = ButtonDefaults.buttonColors(containerColor = BrandCharcoal)
+      ) {
+        Text(if (currentLanguage == AppLanguage.ID) "Simpan Target" else "Save Targets", color = Color.White)
+      }
+    },
+    dismissButton = {
+      OutlinedButton(onClick = onDismiss) {
+        Text(if (currentLanguage == AppLanguage.ID) "Batal" else "Cancel", color = BrandSecondary)
+      }
+    }
+  )
 }
 
 @Composable
