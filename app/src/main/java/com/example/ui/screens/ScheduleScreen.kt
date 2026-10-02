@@ -122,7 +122,7 @@ fun ScheduleScreen(
       Row(
         modifier = Modifier
           .fillMaxWidth()
-          .padding(start = 20.dp, end = 20.dp, top = topInset + 8.dp, bottom = 8.dp),
+          .padding(start = 20.dp, end = 20.dp, top = if (topInset > 0.dp) topInset else 8.dp, bottom = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
       ) {

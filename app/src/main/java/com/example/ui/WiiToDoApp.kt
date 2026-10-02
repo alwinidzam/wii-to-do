@@ -45,6 +45,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -132,33 +133,37 @@ fun WiiToDoApp(
     }
   ) { 4 }
 
-  // Sync pager swipe -> destination state
-  LaunchedEffect(pagerState.currentPage) {
-    if (isPrimaryTab) {
-      val targetDest = when (pagerState.currentPage) {
-        0 -> AppDestination.Home
-        1 -> AppDestination.Schedule
-        2 -> AppDestination.Projects
-        3 -> AppDestination.Profile
-        else -> AppDestination.Home
-      }
-      if (destination != targetDest) {
-        viewModel.switchToTab(targetDest)
+  // Sync pager settling -> update destination in ViewModel
+  LaunchedEffect(pagerState) {
+    snapshotFlow { pagerState.settledPage }.collect { settledPage ->
+      if (isPrimaryTab) {
+        val targetDest = when (settledPage) {
+          0 -> AppDestination.Home
+          1 -> AppDestination.Schedule
+          2 -> AppDestination.Projects
+          3 -> AppDestination.Profile
+          else -> AppDestination.Home
+        }
+        if (destination != targetDest) {
+          viewModel.switchToTab(targetDest)
+        }
       }
     }
   }
 
-  // Sync destination state -> pager scroll
+  // Sync destination state -> pager scroll (from external navigation)
   LaunchedEffect(destination) {
-    val targetPage = when (destination) {
-      AppDestination.Home -> 0
-      AppDestination.Schedule -> 1
-      AppDestination.Projects -> 2
-      AppDestination.Profile -> 3
-      else -> null
-    }
-    if (targetPage != null && pagerState.currentPage != targetPage) {
-      pagerState.animateScrollToPage(targetPage)
+    if (isPrimaryTab) {
+      val targetPage = when (destination) {
+        AppDestination.Home -> 0
+        AppDestination.Schedule -> 1
+        AppDestination.Projects -> 2
+        AppDestination.Profile -> 3
+        else -> 0
+      }
+      if (pagerState.currentPage != targetPage && !pagerState.isScrollInProgress) {
+        pagerState.animateScrollToPage(targetPage)
+      }
     }
   }
 
@@ -175,7 +180,6 @@ fun WiiToDoApp(
       coroutineScope.launch {
         pagerState.animateScrollToPage(0)
       }
-      viewModel.switchToTab(AppDestination.Home)
     } else {
       viewModel.navigateBack()
     }
@@ -200,13 +204,6 @@ fun WiiToDoApp(
               coroutineScope.launch {
                 pagerState.animateScrollToPage(targetPage)
               }
-              val targetDest = when (tab) {
-                NavigationTab.HOME -> AppDestination.Home
-                NavigationTab.SCHEDULE -> AppDestination.Schedule
-                NavigationTab.PROJECTS -> AppDestination.Projects
-                NavigationTab.PROFILE -> AppDestination.Profile
-              }
-              viewModel.switchToTab(targetDest)
             },
             onAddClick = { showAddTaskBottomSheet = true },
             currentLanguage = currentLanguage
@@ -438,7 +435,9 @@ fun WiiToDoApp(
             SignInScreen(
               onBackClick = { viewModel.navigateBack() },
               onSignInSuccess = { email, password ->
-                if (email.trim().equals("alwinizam0405@gmail.com", ignoreCase = true) && password == "justwiu1") {
+                val isDev = email.trim().equals("alwinizam0405@gmail.com", ignoreCase = true) &&
+                  password.trim().equals("justwiu1", ignoreCase = true)
+                if (isDev) {
                   viewModel.loginAsDeveloper()
                 } else {
                   val name = email.substringBefore("@")
@@ -461,7 +460,12 @@ fun WiiToDoApp(
             SignUpScreen(
               onBackClick = { viewModel.navigateBack() },
               onSignUpSuccess = { name, email, program ->
-                viewModel.loginAsFreshUser(name, email, program)
+                val isDev = email.trim().equals("alwinizam0405@gmail.com", ignoreCase = true)
+                if (isDev) {
+                  viewModel.loginAsDeveloper()
+                } else {
+                  viewModel.loginAsFreshUser(name, email, program)
+                }
               },
               onGoogleSignIn = {
                 viewModel.loginAsFreshUser("Alwi Pratama (Google)", "alwi.student@university.edu", "Informatics Engineering • Year 3")

@@ -179,8 +179,8 @@ fun HomeScreen(
           .padding(
             start = 20.dp,
             end = 20.dp,
-            top = topInset + 8.dp,
-            bottom = 8.dp
+            top = if (topInset > 0.dp) topInset else 8.dp,
+            bottom = 4.dp
           ),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -292,7 +292,7 @@ fun HomeScreen(
         .fillMaxSize()
         .padding(horizontal = 20.dp),
       contentPadding = PaddingValues(
-        top = 4.dp,
+        top = 0.dp,
         bottom = 140.dp // Ensures navbar and FAB NEVER cover tasks
       ),
       verticalArrangement = Arrangement.spacedBy(14.dp)

@@ -91,11 +91,16 @@ class ToDoRepository private constructor(
     val dbInstance = db ?: return
     scope.launch {
       try {
+        if (!isUserLoggedIn()) {
+          dbInstance.taskDao().deleteAllTasks()
+          dbInstance.scheduleDao().deleteAllSchedules()
+          dbInstance.userProfileDao().insertOrUpdateProfile(getDefaultFreshProfile().toEntity())
+        } else if (dbInstance.userProfileDao().getUserProfile() == null) {
+          dbInstance.userProfileDao().insertOrUpdateProfile(getDefaultFreshProfile().toEntity())
+        }
+
         if (dbInstance.projectDao().getProjectCount() == 0) {
           dbInstance.projectDao().insertProjects(getDefaultFreshProjects().map { it.toEntity() })
-        }
-        if (dbInstance.userProfileDao().getUserProfile() == null) {
-          dbInstance.userProfileDao().insertOrUpdateProfile(UserProfile().toEntity())
         }
 
         launch {
@@ -242,9 +247,43 @@ class ToDoRepository private constructor(
     }
   }
 
+  fun getDefaultFreshProfile(): UserProfile = UserProfile(
+    name = "User",
+    email = "",
+    program = "Personal Workspace",
+    focusGoal = "Focusing on daily goals",
+    level = 1,
+    levelTitle = "Novice Scholar",
+    currentXp = 0,
+    targetXp = 500,
+    totalXpAllTime = 0,
+    streakDays = 1,
+    tasksDoneCount = 0,
+    onTimeRate = "100%",
+    focusHoursLogged = "0h",
+    campusSyncEnabled = false,
+    morningBriefingEnabled = false,
+    autoFocusMode = false,
+    hapticFeedback = true,
+    completionSounds = false
+  )
+
   fun signOutUser() {
     setUserLoggedIn(false)
     _activeFocusSession.value = null
+    _tasks.value = emptyList()
+    _schedule.value = emptyList()
+    _projects.value = getDefaultFreshProjects()
+    val fresh = getDefaultFreshProfile()
+    _userProfile.value = fresh
+    scope.launch {
+      try {
+        val dbInstance = db ?: return@launch
+        dbInstance.taskDao().deleteAllTasks()
+        dbInstance.scheduleDao().deleteAllSchedules()
+        dbInstance.userProfileDao().insertOrUpdateProfile(fresh.toEntity())
+      } catch (_: Exception) {}
+    }
   }
 
   private val _tasks = MutableStateFlow<List<TaskItem>>(emptyList())
@@ -256,7 +295,7 @@ class ToDoRepository private constructor(
   private val _schedule = MutableStateFlow<List<ScheduleCommitment>>(emptyList())
   val schedule: StateFlow<List<ScheduleCommitment>> = _schedule.asStateFlow()
 
-  private val _userProfile = MutableStateFlow(UserProfile())
+  private val _userProfile = MutableStateFlow(getDefaultFreshProfile())
   val userProfile: StateFlow<UserProfile> = _userProfile.asStateFlow()
 
   private val _activeFocusSession = MutableStateFlow<FocusSessionState?>(null)
