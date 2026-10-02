@@ -41,6 +41,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.ButtonDefaults
@@ -73,8 +74,10 @@ import com.example.ui.components.DateStripSelector
 import com.example.ui.components.LinearBorderHairline
 import com.example.ui.components.LinearDoneGreen
 import com.example.ui.components.TaskCardItem
+import com.example.ui.components.UnifiedTopAppBar
 import com.example.ui.components.VerifiedBadgeIcon
 import com.example.ui.components.WiiBrandLogo
+import com.example.ui.sheets.DeletedTasksBottomSheet
 import com.example.ui.components.getTodayIndex
 import com.example.ui.i18n.AppLanguage
 import com.example.ui.i18n.Translations
@@ -119,13 +122,19 @@ fun HomeScreen(
   userProfile: UserProfile? = null,
   onMilestoneClick: () -> Unit = {},
   currentLanguage: AppLanguage = AppLanguage.ID,
-  onLanguageSelected: (AppLanguage) -> Unit = {}
+  onLanguageSelected: (AppLanguage) -> Unit = {},
+  deletedTasks: List<TaskItem> = emptyList(),
+  onRestoreTask: (String) -> Unit = {},
+  onPermanentlyDeleteTask: (String) -> Unit = {},
+  onEmptyTrash: () -> Unit = {}
 ) {
   val context = LocalContext.current
   val haptic = LocalHapticFeedback.current
   val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
   var hasUnreadNotification by remember { mutableStateOf(false) }
   var isSearchVisible by remember { mutableStateOf(false) }
+  var selectedTaskId by remember { mutableStateOf<String?>(null) }
+  var showTrashSheet by remember { mutableStateOf(false) }
 
   // Filter tasks
   val filteredTasks = tasks.filter { task ->
@@ -195,163 +204,136 @@ fun HomeScreen(
       .fillMaxSize()
       .background(BrandCanvas)
   ) {
-    // 1. Ultra-Compact Apple HIG Navigation Bar (Pinned, Zero Dead Space)
-    Surface(
-      modifier = Modifier.fillMaxWidth(),
-      color = BrandCanvas,
-      border = BorderStroke(0.75.dp, LinearBorderHairline)
-    ) {
-      Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
+    // 1. Unified Fixed Navigation Bar (100% Consistent across Schedule, Projects, Profile)
+    UnifiedTopAppBar(
+      title = strings.appName,
+      subtitle = "$greeting, $userName",
+      showVerifiedBadge = (userProfile?.isVerified == true),
+      subtitleSuffix = " • $totalRemaining ${strings.remaining}",
+      actions = {
+        // Search Toggle Button (34dp)
+        Surface(
           modifier = Modifier
-            .fillMaxWidth()
-            .padding(
-              start = 16.dp,
-              end = 16.dp,
-              top = if (topInset > 0.dp) topInset + 4.dp else 8.dp,
-              bottom = 8.dp
-            ),
-          horizontalArrangement = Arrangement.SpaceBetween,
-          verticalAlignment = Alignment.CenterVertically
+            .size(34.dp)
+            .clip(CircleShape)
+            .clickable {
+              HapticEngine.selection(context, haptic)
+              isSearchVisible = !isSearchVisible
+            },
+          shape = CircleShape,
+          color = if (isSearchVisible || searchQuery.isNotBlank()) BrandCharcoal else Color.White,
+          border = BorderStroke(0.75.dp, LinearBorderHairline)
         ) {
-          // Leading: Brand Logo + Compact App & User Context
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-          ) {
-            WiiBrandLogo(size = 28.dp)
-            Column {
-              Text(
-                text = strings.appName,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = BrandCharcoal,
-                letterSpacing = (-0.02).sp,
-                lineHeight = 17.sp
-              )
-              Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(3.dp)
-              ) {
-                Text(
-                  text = "$greeting, $userName",
-                  fontSize = 10.5.sp,
-                  fontWeight = FontWeight.Medium,
-                  color = BrandSecondary,
-                  letterSpacing = 0.2.sp,
-                  lineHeight = 13.sp
-                )
-                if (userProfile?.isVerified == true) {
-                  VerifiedBadgeIcon(size = 12.5.dp)
-                }
-                Text(
-                  text = " • $totalRemaining ${strings.remaining}",
-                  fontSize = 10.5.sp,
-                  fontWeight = FontWeight.Medium,
-                  color = BrandSecondary,
-                  letterSpacing = 0.2.sp,
-                  lineHeight = 13.sp
-                )
-              }
-            }
+          Box(contentAlignment = Alignment.Center) {
+            Icon(
+              imageVector = if (isSearchVisible || searchQuery.isNotBlank()) Icons.Default.Close else Icons.Outlined.Search,
+              contentDescription = "Search",
+              tint = if (isSearchVisible || searchQuery.isNotBlank()) Color.White else BrandSecondary,
+              modifier = Modifier.size(16.dp)
+            )
           }
+        }
 
-          // Trailing Actions: Search Toggle + Notification + Avatar
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-          ) {
-            // Search Toggle Icon Button
-            Surface(
-              modifier = Modifier
-                .size(32.dp)
-                .clip(CircleShape)
-                .clickable {
-                  HapticEngine.selection(context, haptic)
-                  isSearchVisible = !isSearchVisible
-                },
-              shape = CircleShape,
-              color = if (isSearchVisible || searchQuery.isNotBlank()) BrandCharcoal else Color.White,
-              border = BorderStroke(0.75.dp, LinearBorderHairline)
-            ) {
-              Box(contentAlignment = Alignment.Center) {
-                Icon(
-                  imageVector = if (isSearchVisible || searchQuery.isNotBlank()) Icons.Default.Close else Icons.Outlined.Search,
-                  contentDescription = "Search",
-                  tint = if (isSearchVisible || searchQuery.isNotBlank()) Color.White else BrandSecondary,
-                  modifier = Modifier.size(15.dp)
-                )
-              }
-            }
-
-            // Notification Bell Button
-            Surface(
-              modifier = Modifier
-                .size(32.dp)
-                .clip(CircleShape)
-                .clickable {
-                  HapticEngine.selection(context, haptic)
-                  hasUnreadNotification = false
-                },
-              shape = CircleShape,
-              color = Color.White,
-              border = BorderStroke(0.75.dp, LinearBorderHairline)
-            ) {
-              Box(contentAlignment = Alignment.Center) {
-                Icon(
-                  imageVector = Icons.Outlined.Notifications,
-                  contentDescription = "Notifications",
-                  tint = BrandSecondary,
-                  modifier = Modifier.size(15.dp)
-                )
-                if (hasUnreadNotification) {
-                  Box(
-                    modifier = Modifier
-                      .size(5.dp)
-                      .align(Alignment.TopEnd)
-                      .padding(top = 3.dp, end = 3.dp)
-                      .background(BrandTerracotta, CircleShape)
-                  )
-                }
-              }
-            }
-
-            // User Profile Avatar with Online Status
-            Box(
-              modifier = Modifier
-                .size(32.dp)
-                .clip(CircleShape)
-                .clickable {
-                  HapticEngine.selection(context, haptic)
-                  onProfileClick()
-                }
-            ) {
-              Surface(
-                modifier = Modifier.fillMaxSize(),
-                shape = CircleShape,
-                color = BrandAvatarBg,
-                border = BorderStroke(1.dp, BrandAvatarBorder)
-              ) {
-                Box(contentAlignment = Alignment.Center) {
-                  Text(
-                    text = avatarInitials,
-                    fontSize = 11.5.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = BrandCharcoal
-                  )
-                }
-              }
-              // Online status dot
+        // Trash / Riwayat Terhapus Button (34dp)
+        Surface(
+          modifier = Modifier
+            .size(34.dp)
+            .clip(CircleShape)
+            .clickable {
+              HapticEngine.selection(context, haptic)
+              showTrashSheet = true
+            },
+          shape = CircleShape,
+          color = Color.White,
+          border = BorderStroke(0.75.dp, LinearBorderHairline)
+        ) {
+          Box(contentAlignment = Alignment.Center) {
+            Icon(
+              imageVector = Icons.Outlined.Delete,
+              contentDescription = "Riwayat Terhapus",
+              tint = if (deletedTasks.isNotEmpty()) BrandTerracotta else BrandSecondary,
+              modifier = Modifier.size(16.dp)
+            )
+            if (deletedTasks.isNotEmpty()) {
               Box(
                 modifier = Modifier
-                  .size(8.dp)
-                  .align(Alignment.BottomEnd)
-                  .background(BrandOlive, CircleShape)
-                  .border(BorderStroke(1.5.dp, Color.White), CircleShape)
+                  .size(7.dp)
+                  .align(Alignment.TopEnd)
+                  .padding(top = 4.dp, end = 4.dp)
+                  .background(BrandTerracotta, CircleShape)
               )
             }
           }
         }
+
+        // Notification Bell Button (34dp)
+        Surface(
+          modifier = Modifier
+            .size(34.dp)
+            .clip(CircleShape)
+            .clickable {
+              HapticEngine.selection(context, haptic)
+              hasUnreadNotification = false
+            },
+          shape = CircleShape,
+          color = Color.White,
+          border = BorderStroke(0.75.dp, LinearBorderHairline)
+        ) {
+          Box(contentAlignment = Alignment.Center) {
+            Icon(
+              imageVector = Icons.Outlined.Notifications,
+              contentDescription = "Notifications",
+              tint = BrandSecondary,
+              modifier = Modifier.size(16.dp)
+            )
+            if (hasUnreadNotification) {
+              Box(
+                modifier = Modifier
+                  .size(6.dp)
+                  .align(Alignment.TopEnd)
+                  .padding(top = 4.dp, end = 4.dp)
+                  .background(BrandTerracotta, CircleShape)
+              )
+            }
+          }
+        }
+
+        // User Profile Avatar with Online Status (34dp)
+        Box(
+          modifier = Modifier
+            .size(34.dp)
+            .clip(CircleShape)
+            .clickable {
+              HapticEngine.selection(context, haptic)
+              onProfileClick()
+            }
+        ) {
+          Surface(
+            modifier = Modifier.fillMaxSize(),
+            shape = CircleShape,
+            color = BrandAvatarBg,
+            border = BorderStroke(1.dp, BrandAvatarBorder)
+          ) {
+            Box(contentAlignment = Alignment.Center) {
+              Text(
+                text = avatarInitials,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = BrandCharcoal
+              )
+            }
+          }
+          // Online status dot
+          Box(
+            modifier = Modifier
+              .size(8.dp)
+              .align(Alignment.BottomEnd)
+              .background(BrandOlive, CircleShape)
+              .border(BorderStroke(1.5.dp, Color.White), CircleShape)
+          )
+        }
+      }
+    )
 
         // Micro Progress Line (only visible when tasks exist)
         if (totalTasks > 0) {
@@ -670,7 +652,14 @@ fun HomeScreen(
               onToggleTaskComplete(task.id)
             },
             onClick = { onTaskClick(task.id) },
-            onDelete = { onDeleteTask(task.id) }
+            onDelete = {
+              selectedTaskId = null
+              onDeleteTask(task.id)
+            },
+            isSelected = (selectedTaskId == task.id),
+            onSelect = {
+              selectedTaskId = if (selectedTaskId == task.id) null else task.id
+            }
           )
         }
 
@@ -709,7 +698,14 @@ fun HomeScreen(
                 onToggleTaskComplete(task.id)
               },
               onClick = { onTaskClick(task.id) },
-              onDelete = { onDeleteTask(task.id) }
+              onDelete = {
+                selectedTaskId = null
+                onDeleteTask(task.id)
+              },
+              isSelected = (selectedTaskId == task.id),
+              onSelect = {
+                selectedTaskId = if (selectedTaskId == task.id) null else task.id
+              }
             )
           }
         }
@@ -736,6 +732,23 @@ fun HomeScreen(
           )
         }
       }
+    }
+
+    // Kotak Sampah / Riwayat Terhapus Bottom Sheet
+    if (showTrashSheet) {
+      DeletedTasksBottomSheet(
+        deletedTasks = deletedTasks,
+        onRestoreTask = { id ->
+          onRestoreTask(id)
+        },
+        onPermanentlyDelete = { id ->
+          onPermanentlyDeleteTask(id)
+        },
+        onEmptyTrash = {
+          onEmptyTrash()
+        },
+        onDismiss = { showTrashSheet = false }
+      )
     }
   }
 }

@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.FocusSessionState
 import com.example.data.model.ScheduleCommitment
 import com.example.ui.components.DateStripSelector
+import com.example.ui.components.UnifiedTopAppBar
 import com.example.ui.components.WiiBrandLogo
 import com.example.ui.components.getTodayIndex
 import java.text.SimpleDateFormat
@@ -114,75 +115,46 @@ fun ScheduleScreen(
 
   Box(modifier = modifier.fillMaxSize().background(BrandCanvas)) {
     Column(modifier = Modifier.fillMaxSize()) {
-      // 1. Fixed Header with Logo & Segmented Control (pinned at top)
-      Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = BrandCanvas
-      ) {
-      Row(
-        modifier = Modifier
-          .fillMaxWidth()
-          .padding(start = 20.dp, end = 20.dp, top = if (topInset > 0.dp) topInset else 8.dp, bottom = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        Row(
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-          WiiBrandLogo(size = 30.dp)
-          Column {
-            Text(
-              text = "wii to do",
-              fontSize = 16.sp,
-              fontWeight = FontWeight.Bold,
-              color = BrandCharcoal,
-              letterSpacing = (-0.02).sp
-            )
-            Text(
-              text = "schedule",
-              fontSize = 10.sp,
-              color = BrandSecondary,
-              fontWeight = FontWeight.Medium,
-              letterSpacing = 0.5.sp
-            )
-          }
-        }
-
-        // Segmented Day/Week Toggle
-        Surface(
-          shape = RoundedCornerShape(10.dp),
-          color = Color.White,
-          border = BorderStroke(1.dp, BrandBorder)
-        ) {
-          Row(modifier = Modifier.padding(3.dp)) {
-            val modes = listOf("Day", "Week")
-            modes.forEach { mode ->
-              val isSelected = (mode == viewMode)
-              Surface(
-                modifier = Modifier
-                  .testTag("schedule_mode_$mode")
-                  .clip(RoundedCornerShape(8.dp))
-                  .clickable {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onViewModeChanged(mode)
-                  },
-                shape = RoundedCornerShape(8.dp),
-                color = if (isSelected) BrandCharcoal else Color.Transparent
-              ) {
-                Text(
-                  text = mode,
-                  fontSize = 12.sp,
-                  fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                  color = if (isSelected) Color.White else BrandSecondary,
-                  modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
-                )
+      // 1. Unified Fixed Header (Zero jitter with other tabs)
+      UnifiedTopAppBar(
+        title = "wii to do",
+        subtitle = "jadwal & komitmen",
+        showVerifiedBadge = false,
+        actions = {
+          // Segmented Day/Week Toggle
+          Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = Color.White,
+            border = BorderStroke(1.dp, BrandBorder)
+          ) {
+            Row(modifier = Modifier.padding(3.dp)) {
+              val modes = listOf("Day", "Week")
+              modes.forEach { mode ->
+                val isSelected = (mode == viewMode)
+                Surface(
+                  modifier = Modifier
+                    .testTag("schedule_mode_$mode")
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable {
+                      haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                      onViewModeChanged(mode)
+                    },
+                  shape = RoundedCornerShape(8.dp),
+                  color = if (isSelected) BrandCharcoal else Color.Transparent
+                ) {
+                  Text(
+                    text = mode,
+                    fontSize = 12.sp,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                    color = if (isSelected) Color.White else BrandSecondary,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                  )
+                }
               }
             }
           }
         }
-      }
-    }
+      )
 
     LazyColumn(
       modifier = Modifier

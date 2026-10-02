@@ -102,7 +102,9 @@ fun TaskCardItem(
   onToggleComplete: () -> Unit,
   onClick: () -> Unit = {},
   modifier: Modifier = Modifier,
-  onDelete: (() -> Unit)? = null
+  onDelete: (() -> Unit)? = null,
+  isSelected: Boolean = false,
+  onSelect: () -> Unit = {}
 ) {
   val context = LocalContext.current
   val haptic = LocalHapticFeedback.current
@@ -157,8 +159,8 @@ fun TaskCardItem(
   ) {
     SwipeToDismissBox(
       state = dismissState,
-      enableDismissFromStartToEnd = true,
-      enableDismissFromEndToStart = onDelete != null,
+      enableDismissFromStartToEnd = isSelected,
+      enableDismissFromEndToStart = isSelected && onDelete != null,
       backgroundContent = {
         val direction = dismissState.dismissDirection
         val color by animateColorAsState(
@@ -231,9 +233,11 @@ fun TaskCardItem(
         titleColor = titleColor,
         textDecoration = textDecoration,
         isExpanded = isExpanded,
+        isSelected = isSelected,
         onToggleExpand = { isExpanded = !isExpanded },
         onToggleComplete = onToggleComplete,
         onClick = onClick,
+        onSelect = onSelect,
         onDeleteClick = if (onDelete != null) {
           {
             HapticEngine.warning(context, haptic)
@@ -253,9 +257,11 @@ private fun TaskCardContent(
   titleColor: Color,
   textDecoration: TextDecoration,
   isExpanded: Boolean,
+  isSelected: Boolean,
   onToggleExpand: () -> Unit,
   onToggleComplete: () -> Unit,
   onClick: () -> Unit,
+  onSelect: () -> Unit,
   onDeleteClick: (() -> Unit)?,
   modifier: Modifier = Modifier
 ) {
@@ -268,7 +274,7 @@ private fun TaskCardContent(
       .fillMaxWidth()
       .testTag("task_card_${task.id}")
       .shadow(
-        elevation = 0.5.dp,
+        elevation = if (isSelected) 2.dp else 0.5.dp,
         shape = RoundedCornerShape(14.dp),
         ambientColor = Color(0x06000000),
         spotColor = Color(0x04000000)
@@ -276,12 +282,18 @@ private fun TaskCardContent(
       .animateContentSize(animationSpec = tween(durationMillis = 180)),
     shape = RoundedCornerShape(14.dp),
     color = Color.White.copy(alpha = cardAlpha),
-    border = BorderStroke(0.75.dp, LinearBorderHairline)
+    border = BorderStroke(
+      if (isSelected) 1.5.dp else 0.75.dp,
+      if (isSelected) BrandCharcoal else LinearBorderHairline
+    )
   ) {
     Column(
       modifier = Modifier
         .fillMaxWidth()
-        .clickable { onToggleExpand() }
+        .clickable {
+          HapticEngine.selection(context, haptic)
+          onSelect()
+        }
         .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
       Row(
@@ -566,6 +578,84 @@ private fun TaskCardContent(
                   tint = LinearUrgentRed,
                   modifier = Modifier.size(16.dp)
                 )
+              }
+            }
+          }
+        }
+      }
+
+      // Quick Action Dock when task is tapped/selected (image 2 logic)
+      AnimatedVisibility(
+        visible = isSelected,
+        enter = fadeIn(animationSpec = tween(140)) + expandVertically(animationSpec = tween(180)),
+        exit = fadeOut(animationSpec = tween(100)) + shrinkVertically(animationSpec = tween(150))
+      ) {
+        Surface(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 10.dp),
+          shape = RoundedCornerShape(10.dp),
+          color = BrandPillBg,
+          border = BorderStroke(1.dp, BrandBorderLight)
+        ) {
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(horizontal = 10.dp, vertical = 7.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Text(
+              text = "← Swipe hapus | selesai →",
+              fontSize = 10.5.sp,
+              color = BrandSecondary,
+              fontWeight = FontWeight.Medium
+            )
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+              // 1-tap complete
+              Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = LinearDoneGreen.copy(alpha = 0.12f),
+                border = BorderStroke(0.75.dp, LinearDoneGreen.copy(alpha = 0.35f)),
+                modifier = Modifier
+                  .clip(RoundedCornerShape(6.dp))
+                  .clickable {
+                    HapticEngine.success(context, haptic)
+                    onToggleComplete()
+                  }
+              ) {
+                Text(
+                  text = if (isDone) "Reopen" else "Selesai",
+                  fontSize = 11.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = LinearDoneGreen,
+                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+              }
+
+              // 1-tap delete
+              if (onDeleteClick != null) {
+                Surface(
+                  shape = RoundedCornerShape(6.dp),
+                  color = LinearUrgentRed.copy(alpha = 0.12f),
+                  border = BorderStroke(0.75.dp, LinearUrgentRed.copy(alpha = 0.35f)),
+                  modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .clickable {
+                      onDeleteClick()
+                    }
+                ) {
+                  Text(
+                    text = "Hapus",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = LinearUrgentRed,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                  )
+                }
               }
             }
           }

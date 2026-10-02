@@ -33,7 +33,9 @@ data class TaskEntity(
   val subtasksCompletedCount: Int? = null,
   val subtasksTotalCount: Int? = null,
   val isTomorrow: Boolean = false,
-  val courseName: String? = null
+  val courseName: String? = null,
+  val isDeleted: Boolean = false,
+  val deletedAt: Long? = null
 )
 
 fun TaskEntity.toModel(): TaskItem = TaskItem(
@@ -58,7 +60,9 @@ fun TaskEntity.toModel(): TaskItem = TaskItem(
   subtasksCompletedCount = subtasksCompletedCount,
   subtasksTotalCount = subtasksTotalCount,
   isTomorrow = isTomorrow,
-  courseName = courseName
+  courseName = courseName,
+  isDeleted = isDeleted,
+  deletedAt = deletedAt
 )
 
 fun TaskItem.toEntity(): TaskEntity = TaskEntity(
@@ -83,7 +87,9 @@ fun TaskItem.toEntity(): TaskEntity = TaskEntity(
   subtasksCompletedCount = subtasksCompletedCount,
   subtasksTotalCount = subtasksTotalCount,
   isTomorrow = isTomorrow,
-  courseName = courseName
+  courseName = courseName,
+  isDeleted = isDeleted,
+  deletedAt = deletedAt
 )
 
 @Entity(tableName = "projects")

@@ -111,7 +111,9 @@ class ToDoRepository private constructor(
 
         launch {
           dbInstance.taskDao().getAllTasksFlow().collect { entities ->
-            _tasks.value = entities.map { it.toModel() }
+            val all = entities.map { it.toModel() }
+            _tasks.value = all.filter { !it.isDeleted }
+            _deletedTasks.value = all.filter { it.isDeleted }
             updateProjectTaskCounts()
           }
         }
@@ -419,6 +421,9 @@ class ToDoRepository private constructor(
   private val _tasks = MutableStateFlow<List<TaskItem>>(emptyList())
   val tasks: StateFlow<List<TaskItem>> = _tasks.asStateFlow()
 
+  private val _deletedTasks = MutableStateFlow<List<TaskItem>>(emptyList())
+  val deletedTasks: StateFlow<List<TaskItem>> = _deletedTasks.asStateFlow()
+
   private val _projects = MutableStateFlow<List<ProjectItem>>(getDefaultFreshProjects())
   val projects: StateFlow<List<ProjectItem>> = _projects.asStateFlow()
 
@@ -560,10 +565,55 @@ class ToDoRepository private constructor(
     }
   }
 
-  fun deleteTask(taskId: String) {
+  fun deleteTask(taskId: String): TaskItem? {
+    val target = _tasks.value.find { it.id == taskId } ?: return null
+    val deletedItem = target.copy(isDeleted = true, deletedAt = System.currentTimeMillis())
     _tasks.value = _tasks.value.filter { it.id != taskId }
+    _deletedTasks.value = listOf(deletedItem) + _deletedTasks.value.filter { it.id != taskId }
     updateProjectTaskCounts()
+    scope.launch { try { db?.taskDao()?.updateTask(deletedItem.toEntity()) } catch (_: Exception) {} }
+    return deletedItem
+  }
+
+  fun restoreTask(taskId: String): TaskItem? {
+    val target = _deletedTasks.value.find { it.id == taskId } ?: return null
+    val restoredItem = target.copy(isDeleted = false, deletedAt = null)
+    _deletedTasks.value = _deletedTasks.value.filter { it.id != taskId }
+    _tasks.value = listOf(restoredItem) + _tasks.value.filter { it.id != taskId }
+    updateProjectTaskCounts()
+    scope.launch { try { db?.taskDao()?.updateTask(restoredItem.toEntity()) } catch (_: Exception) {} }
+    return restoredItem
+  }
+
+  fun permanentlyDeleteTask(taskId: String) {
+    _deletedTasks.value = _deletedTasks.value.filter { it.id != taskId }
     scope.launch { try { db?.taskDao()?.deleteTaskById(taskId) } catch (_: Exception) {} }
+  }
+
+  fun emptyTrash() {
+    val ids = _deletedTasks.value.map { it.id }
+    _deletedTasks.value = emptyList()
+    scope.launch { ids.forEach { try { db?.taskDao()?.deleteTaskById(it) } catch (_: Exception) {} } }
+  }
+
+  fun addProject(title: String, category: String, description: String = "", code: String = "") {
+    val newId = UUID.randomUUID().toString()
+    val cleanCode = if (code.isNotBlank()) code else {
+      val prefix = if (category.equals("College", ignoreCase = true)) "COL" else "WRK"
+      "$prefix-${(100..999).random()}"
+    }
+    val newProj = ProjectItem(
+      id = newId,
+      code = cleanCode,
+      title = title,
+      category = category,
+      totalTasks = 0,
+      completedTasks = 0,
+      description = description,
+      dueDate = "Ongoing"
+    )
+    _projects.value = _projects.value + newProj
+    scope.launch { try { db?.projectDao()?.insertProjects(listOf(newProj.toEntity())) } catch (_: Exception) {} }
   }
 
   fun addSubTask(taskId: String, title: String, effortMinutes: Int = 30) {

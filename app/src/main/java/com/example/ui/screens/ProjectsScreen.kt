@@ -6,6 +6,10 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,19 +32,29 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material.icons.filled.ViewKanban
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.RadioButtonUnchecked
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,18 +68,25 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.KanbanColumn
 import com.example.data.model.ProjectItem
 import com.example.data.model.TaskItem
 import com.example.data.model.TaskPriority
-import com.example.ui.components.WiiBrandLogo
+import com.example.ui.components.LinearBorderHairline
+import com.example.ui.components.LinearDoneGreen
+import com.example.ui.components.LinearInProgressAmber
+import com.example.ui.components.LinearPrioritySignal
+import com.example.ui.components.LinearStatusRing
+import com.example.ui.components.LinearUrgentRed
+import com.example.ui.components.UnifiedTopAppBar
 import com.example.ui.theme.BrandBorder
 import com.example.ui.theme.BrandBorderLight
 import com.example.ui.theme.BrandCanvas
@@ -79,7 +100,17 @@ import com.example.ui.theme.BrandSecondary
 import com.example.ui.theme.BrandTagBg
 import com.example.ui.theme.BrandTerracotta
 import com.example.ui.theme.BrandTerracottaBg
+import com.example.ui.theme.HapticEngine
 
+/**
+ * Super High-End Executive Projects Workspace.
+ * Redesigned for maximum clarity and user-friendliness:
+ * 1. Unified 100% consistent Top Navigation Bar.
+ * 2. Executive Project Cards with dual-metric milestone progress (percentage + count).
+ * 3. Deep-dive Project Detail View with clear Back navigation.
+ * 4. Clean vertical task sections (Belum Dikerjakan, Sedang Berjalan, Selesai).
+ * 5. Instant inline task creator & new project dialog.
+ */
 @Composable
 fun ProjectsScreen(
   projects: List<ProjectItem>,
@@ -87,19 +118,25 @@ fun ProjectsScreen(
   onTaskClick: (String) -> Unit,
   onNewTaskClick: () -> Unit,
   modifier: Modifier = Modifier,
-  onUpdateKanbanStatus: (String, KanbanColumn) -> Unit = { _, _ -> }
+  onUpdateKanbanStatus: (String, KanbanColumn) -> Unit = { _, _ -> },
+  onToggleTaskComplete: (String) -> Unit = {},
+  onAddProject: (String, String, String) -> Unit = { _, _, _ -> },
+  onAddTaskToProject: (String, String, String) -> Unit = { _, _, _ -> }
 ) {
+  val context = LocalContext.current
   val haptic = LocalHapticFeedback.current
-  val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-  var viewTab by remember { mutableStateOf("Overview") } // "Overview" vs "Kanban"
   var selectedCategory by remember { mutableStateOf("All") }
-  var selectedKanbanColumn by remember { mutableStateOf(KanbanColumn.IN_PROGRESS) }
-  var selectedProjectId by remember { mutableStateOf(projects.firstOrNull()?.id ?: "proj_1") }
+  var selectedProjectId by remember { mutableStateOf<String?>(null) }
+  var showNewProjectDialog by remember { mutableStateOf(false) }
 
-  val currentProject = projects.find { it.id == selectedProjectId } ?: projects.firstOrNull()
+  val currentProject = projects.find { it.id == selectedProjectId }
 
   val filteredProjects = projects.filter {
     selectedCategory == "All" || it.category.equals(selectedCategory, ignoreCase = true)
+  }
+
+  val totalProjectTasks = tasks.count { task ->
+    projects.any { it.title.equals(task.project, ignoreCase = true) }
   }
 
   Column(
@@ -107,119 +144,26 @@ fun ProjectsScreen(
       .fillMaxSize()
       .background(BrandCanvas)
   ) {
-    // 1. Fixed Top Bar (Pinned at top, does not scroll)
-    Surface(
-      modifier = Modifier.fillMaxWidth(),
-      color = BrandCanvas
-    ) {
-      Row(
-        modifier = Modifier
-          .fillMaxWidth()
-          .padding(start = 20.dp, end = 20.dp, top = if (topInset > 0.dp) topInset else 8.dp, bottom = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        Row(
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-          WiiBrandLogo(size = 30.dp)
-          Column {
-            Text(
-              text = "wii to do",
-              fontSize = 16.sp,
-              fontWeight = FontWeight.Bold,
-              color = BrandCharcoal,
-              letterSpacing = (-0.02).sp
-            )
-            Text(
-              text = "projects",
-              fontSize = 10.sp,
-              color = BrandSecondary,
-              fontWeight = FontWeight.Medium,
-              letterSpacing = 0.5.sp
-            )
-          }
-        }
-
-        Surface(
-          shape = RoundedCornerShape(10.dp),
-          color = Color.White,
-          border = BorderStroke(1.dp, BrandBorder)
-        ) {
-          Row(modifier = Modifier.padding(3.dp)) {
-            listOf("Overview", "Kanban").forEach { tab ->
-              val isSelected = (viewTab == tab)
-              Surface(
-                modifier = Modifier
-                  .clip(RoundedCornerShape(8.dp))
-                  .clickable {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    viewTab = tab
-                  },
-                shape = RoundedCornerShape(8.dp),
-                color = if (isSelected) BrandCharcoal else Color.Transparent
-              ) {
-                Text(
-                  text = tab,
-                  fontSize = 12.sp,
-                  fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                  color = if (isSelected) Color.White else BrandSecondary,
-                  modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
-                )
-              }
-            }
-          }
-        }
-      }
-    }
-
-    LazyColumn(
-      modifier = Modifier
-        .fillMaxSize()
-        .padding(horizontal = 20.dp),
-      contentPadding = androidx.compose.foundation.layout.PaddingValues(
-        top = 4.dp,
-        bottom = 150.dp
-      ),
-      verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-
-    if (viewTab == "Overview") {
-      // Projects Overview View
-      item {
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.SpaceBetween,
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          Column {
-            Text(
-              text = "Projects",
-              fontSize = 24.sp,
-              fontWeight = FontWeight.Bold,
-              color = BrandCharcoal,
-              letterSpacing = (-0.02).sp
-            )
-            Text(
-              text = "${projects.size} active projects across College & Work",
-              fontSize = 12.sp,
-              color = BrandSecondary
-            )
-          }
-
+    // 1. Unified Fixed Header (Rock-solid consistency with Home, Schedule, and Profile)
+    if (currentProject == null) {
+      UnifiedTopAppBar(
+        title = "wii to do",
+        subtitle = "${projects.size} proyek aktif • $totalProjectTasks tugas",
+        showVerifiedBadge = false,
+        actions = {
+          // New Project Button
           Surface(
             modifier = Modifier
               .clip(RoundedCornerShape(10.dp))
               .clickable {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                onNewTaskClick()
+                HapticEngine.selection(context, haptic)
+                showNewProjectDialog = true
               },
             shape = RoundedCornerShape(10.dp),
             color = BrandCharcoal
           ) {
             Row(
-              modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+              modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
               verticalAlignment = Alignment.CenterVertically,
               horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
@@ -227,758 +171,872 @@ fun ProjectsScreen(
                 imageVector = Icons.Default.Add,
                 contentDescription = null,
                 tint = Color.White,
-                modifier = Modifier.size(15.dp)
+                modifier = Modifier.size(14.dp)
               )
               Text(
-                text = "New",
-                fontSize = 12.sp,
+                text = "Proyek",
+                fontSize = 11.5.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White
               )
             }
           }
         }
-      }
-
-      // Filter chips
-      item {
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-          listOf("All", "College", "Work", "Personal").forEach { cat ->
-            val isSelected = (selectedCategory == cat)
-            Surface(
-              modifier = Modifier
-                .clip(RoundedCornerShape(16.dp))
-                .clickable {
-                  haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                  selectedCategory = cat
-                },
-              shape = RoundedCornerShape(16.dp),
-              color = if (isSelected) BrandCharcoal else Color.White,
-              border = if (!isSelected) BorderStroke(1.dp, BrandBorder) else null
-            ) {
-              Text(
-                text = cat,
-                fontSize = 12.sp,
-                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                color = if (isSelected) Color.White else BrandSecondary,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
-              )
-            }
-          }
-        }
-      }
-
-      // Project Cards
-      items(filteredProjects, key = { it.id }) { proj ->
-        val pct = (proj.completedTasks.toFloat() / proj.totalTasks.toFloat()).coerceIn(0f, 1f)
-        val interactionSource = remember { MutableInteractionSource() }
-        val isPressed by interactionSource.collectIsPressedAsState()
-        val scale by animateFloatAsState(
-          targetValue = if (isPressed) 0.98f else 1.0f,
-          animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
-          label = "proj_scale"
-        )
-
-        Surface(
-          modifier = Modifier
-            .fillMaxWidth()
-            .graphicsLayer {
-              scaleX = scale
-              scaleY = scale
-            }
-            .shadow(
-              elevation = 1.dp,
-              shape = RoundedCornerShape(16.dp),
-              ambientColor = Color(0x06000000),
-              spotColor = Color(0x05000000)
-            )
-            .clip(RoundedCornerShape(16.dp))
-            .clickable(
-              interactionSource = interactionSource,
-              indication = null
-            ) {
-              haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-              selectedProjectId = proj.id
-              viewTab = "Kanban"
-            },
-          shape = RoundedCornerShape(16.dp),
-          color = Color.White,
-          border = BorderStroke(1.dp, BrandBorder)
-        ) {
-          Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically
-            ) {
-              Surface(
-                shape = RoundedCornerShape(6.dp),
-                color = if (proj.category == "Work") BrandOliveBg else BrandTagBg,
-                border = BorderStroke(1.dp, if (proj.category == "Work") BrandOliveBorder else BrandBorderLight)
-              ) {
-                Text(
-                  text = proj.code,
-                  fontSize = 11.sp,
-                  fontWeight = FontWeight.SemiBold,
-                  color = if (proj.category == "Work") BrandOlive else BrandCharcoal,
-                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                )
-              }
-
-              Icon(
-                imageVector = Icons.Default.MoreVert,
-                contentDescription = null,
-                tint = BrandSecondary,
-                modifier = Modifier.size(18.dp)
-              )
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text(
-              text = proj.title,
-              fontSize = 16.sp,
-              fontWeight = FontWeight.Bold,
-              color = BrandCharcoal,
-              letterSpacing = (-0.01).sp
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Progress bar
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-              Text(
-                text = "${proj.completedTasks} of ${proj.totalTasks} completed",
-                fontSize = 12.sp,
-                color = BrandSecondary
-              )
-              Text(
-                text = "${(pct * 100).toInt()}%",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = BrandCharcoal
-              )
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            LinearProgressIndicator(
-              progress = { pct },
-              modifier = Modifier
-                .fillMaxWidth()
-                .height(5.dp)
-                .clip(RoundedCornerShape(2.5.dp)),
-              color = BrandCharcoal,
-              trackColor = BrandBorderLight
-            )
-
-            if (proj.nextTaskPreview.isNotEmpty()) {
-              Spacer(modifier = Modifier.height(14.dp))
-              Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-              ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                  Icon(
-                    imageVector = Icons.Default.RadioButtonUnchecked,
-                    contentDescription = null,
-                    tint = BrandSecondary,
-                    modifier = Modifier.size(14.dp)
-                  )
-                  Spacer(modifier = Modifier.width(6.dp))
-                  Text(
-                    text = proj.nextTaskPreview,
-                    fontSize = 12.sp,
-                    color = BrandCharcoal,
-                    maxLines = 1
-                  )
-                }
-                Text(
-                  text = proj.nextTaskDue,
-                  fontSize = 11.sp,
-                  color = if (proj.nextTaskDue.contains("Today")) BrandTerracotta else BrandSecondary,
-                  fontWeight = FontWeight.Medium
-                )
-              }
-            }
-          }
-        }
-      }
+      )
     } else {
-      // Interactive Kanban Board View
-      // 1. Horizontal Project Selector Pills
-      item {
-        LazyRow(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-          items(projects) { p ->
-            val isCurrent = (p.id == selectedProjectId)
-            Surface(
-              modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
-                .clickable {
-                  haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                  selectedProjectId = p.id
-                },
-              shape = RoundedCornerShape(8.dp),
-              color = if (isCurrent) BrandCharcoal else Color.White,
-              border = if (!isCurrent) BorderStroke(1.dp, BrandBorder) else null
-            ) {
-              Text(
-                text = p.code,
-                fontSize = 11.sp,
-                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
-                color = if (isCurrent) Color.White else BrandSecondary,
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-              )
-            }
-          }
-        }
-      }
-
-      // 2. Project Header Card
-      item {
-        Surface(
-          modifier = Modifier.fillMaxWidth(),
-          shape = RoundedCornerShape(16.dp),
-          color = Color.White,
-          border = BorderStroke(1.dp, BrandBorder)
-        ) {
-          Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically
-            ) {
-              Surface(
-                shape = RoundedCornerShape(6.dp),
-                color = if (currentProject?.category == "Work") BrandOliveBg else BrandTagBg,
-                border = BorderStroke(1.dp, if (currentProject?.category == "Work") BrandOliveBorder else BrandBorderLight)
-              ) {
-                Text(
-                  text = currentProject?.code ?: "Project",
-                  fontSize = 11.sp,
-                  fontWeight = FontWeight.SemiBold,
-                  color = if (currentProject?.category == "Work") BrandOlive else BrandCharcoal,
-                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                )
-              }
-              Text(
-                text = currentProject?.dueDate ?: "",
-                fontSize = 11.sp,
-                color = BrandSecondary
-              )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-              text = currentProject?.title ?: "Project Tasks",
-              fontSize = 18.sp,
-              fontWeight = FontWeight.Bold,
-              color = BrandCharcoal,
-              letterSpacing = (-0.02).sp
-            )
-            if (!currentProject?.description.isNullOrEmpty()) {
-              Spacer(modifier = Modifier.height(4.dp))
-              Text(
-                text = currentProject!!.description,
-                fontSize = 12.sp,
-                color = BrandSecondary,
-                lineHeight = 16.sp
-              )
-            }
-          }
-        }
-      }
-
-      // 3. Sprint & Tags Bar
-      val projectTags = currentProject?.tags?.ifEmpty {
-        listOf("#${currentProject.category.lowercase()}", "#sprint", "#focus")
-      } ?: listOf("#project", "#tasks")
-
-      item {
-        Surface(
-          modifier = Modifier.fillMaxWidth(),
-          shape = RoundedCornerShape(12.dp),
-          color = BrandPillBg,
-          border = BorderStroke(1.dp, BrandBorderLight)
-        ) {
-          Column(modifier = Modifier.padding(10.dp)) {
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically
-            ) {
-              Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-              ) {
-                Icon(
-                  imageVector = Icons.Default.AutoAwesome,
-                  contentDescription = null,
-                  tint = BrandOlive,
-                  modifier = Modifier.size(14.dp)
-                )
-                Text(
-                  text = currentProject?.activeSprint ?: "Sprint Focus",
-                  fontSize = 11.sp,
-                  fontWeight = FontWeight.Bold,
-                  color = BrandCharcoal
-                )
-              }
-              Surface(
-                shape = RoundedCornerShape(4.dp),
-                color = BrandOliveBg,
-                border = BorderStroke(1.dp, BrandOliveBorder)
-              ) {
-                Text(
-                  text = "ACTIVE",
-                  fontSize = 9.sp,
-                  fontWeight = FontWeight.Bold,
-                  color = BrandOlive,
-                  modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
-                )
-              }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            LazyRow(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-              items(projectTags) { tag ->
-                Surface(
-                  shape = RoundedCornerShape(6.dp),
-                  color = Color.White,
-                  border = BorderStroke(1.dp, BrandBorderLight)
-                ) {
-                  Text(
-                    text = tag,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = BrandSecondary,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                  )
-                }
-              }
-            }
-          }
-        }
-      }
-
-      // 4. Tasks Filtered By Project
-      val projectTasks = tasks.filter { task ->
-        currentProject == null ||
-          task.project.equals(currentProject.title, ignoreCase = true) ||
-          task.category.equals(currentProject.category, ignoreCase = true)
-      }
-
-      // 5. Column Switcher Header Tabs (In Progress, To Do, Done)
-      item {
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-          KanbanColumn.values().forEach { col ->
-            val isSelected = (selectedKanbanColumn == col)
-            val count = projectTasks.count { it.kanbanStatus == col }
-            Surface(
-              modifier = Modifier
-                .weight(1f)
-                .clip(RoundedCornerShape(10.dp))
-                .clickable {
-                  haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                  selectedKanbanColumn = col
-                },
-              shape = RoundedCornerShape(10.dp),
-              color = if (isSelected) BrandCharcoal else Color.White,
-              border = if (!isSelected) BorderStroke(1.dp, BrandBorder) else null
-            ) {
-              Row(
-                modifier = Modifier.padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-              ) {
-                Text(
-                  text = col.label,
-                  fontSize = 12.sp,
-                  fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                  color = if (isSelected) Color.White else BrandSecondary
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Surface(
-                  shape = CircleShape,
-                  color = if (isSelected) Color.White.copy(alpha = 0.2f) else BrandPillBg
-                ) {
-                  Text(
-                    text = "$count",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isSelected) Color.White else BrandSecondary,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
-                  )
-                }
-              }
-            }
-          }
-        }
-      }
-
-      // 6. Kanban Tasks List
-      val kanbanTasks = projectTasks.filter { it.kanbanStatus == selectedKanbanColumn }
-
-      if (kanbanTasks.isEmpty()) {
-        item {
+      UnifiedTopAppBar(
+        title = currentProject.title,
+        subtitle = "${currentProject.category} • ${currentProject.code}",
+        showVerifiedBadge = false,
+        customLeading = {
           Surface(
             modifier = Modifier
-              .fillMaxWidth()
-              .padding(vertical = 20.dp),
-            shape = RoundedCornerShape(14.dp),
+              .size(34.dp)
+              .clip(CircleShape)
+              .clickable {
+                HapticEngine.selection(context, haptic)
+                selectedProjectId = null
+              },
+            shape = CircleShape,
             color = Color.White,
+            border = BorderStroke(0.75.dp, LinearBorderHairline)
+          ) {
+            Box(contentAlignment = Alignment.Center) {
+              Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Kembali",
+                tint = BrandCharcoal,
+                modifier = Modifier.size(16.dp)
+              )
+            }
+          }
+        },
+        actions = {
+          Surface(
+            modifier = Modifier
+              .clip(RoundedCornerShape(8.dp))
+              .clickable {
+                HapticEngine.selection(context, haptic)
+                selectedProjectId = null
+              },
+            shape = RoundedCornerShape(8.dp),
+            color = BrandCanvas,
             border = BorderStroke(1.dp, BrandBorderLight)
           ) {
+            Text(
+              text = "Tutup Detail",
+              fontSize = 11.sp,
+              fontWeight = FontWeight.Medium,
+              color = BrandSecondary,
+              modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
+            )
+          }
+        }
+      )
+    }
+
+    // 2. Main Content
+    if (currentProject == null) {
+      // OVERVIEW / LIST OF ALL PROJECTS
+      LazyColumn(
+        modifier = Modifier
+          .fillMaxSize()
+          .padding(horizontal = 20.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+          top = 14.dp,
+          bottom = 150.dp
+        ),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+      ) {
+        // Category Filter Chips
+        item {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            listOf("All" to "Semua", "College" to "🎓 Kuliah", "Work" to "💼 Pekerjaan", "Personal" to "👤 Pribadi").forEach { (catKey, label) ->
+              val isSelected = (selectedCategory == catKey)
+              Surface(
+                modifier = Modifier
+                  .clip(RoundedCornerShape(16.dp))
+                  .clickable {
+                    HapticEngine.selection(context, haptic)
+                    selectedCategory = catKey
+                  },
+                shape = RoundedCornerShape(16.dp),
+                color = if (isSelected) BrandCharcoal else Color.White,
+                border = if (!isSelected) BorderStroke(1.dp, BrandBorder) else null
+              ) {
+                Text(
+                  text = label,
+                  fontSize = 11.5.sp,
+                  fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                  color = if (isSelected) Color.White else BrandSecondary,
+                  modifier = Modifier.padding(horizontal = 13.dp, vertical = 6.dp)
+                )
+              }
+            }
+          }
+        }
+
+        // Project Cards
+        if (filteredProjects.isEmpty()) {
+          item {
             Column(
-              modifier = Modifier.padding(24.dp),
-              horizontalAlignment = Alignment.CenterHorizontally,
-              verticalArrangement = Arrangement.Center
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 40.dp),
+              horizontalAlignment = Alignment.CenterHorizontally
             ) {
+              Icon(
+                imageVector = Icons.Outlined.Folder,
+                contentDescription = null,
+                tint = BrandSecondary.copy(alpha = 0.4f),
+                modifier = Modifier.size(48.dp)
+              )
+              Spacer(modifier = Modifier.height(10.dp))
               Text(
-                text = "No tasks in ${selectedKanbanColumn.label}",
-                fontSize = 14.sp,
+                text = "Belum Ada Proyek",
+                fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = BrandCharcoal
               )
               Spacer(modifier = Modifier.height(4.dp))
               Text(
-                text = "Move tasks here or create a new task for ${currentProject?.title ?: "this workspace"}",
+                text = "Tap '+ Proyek' di pojok kanan atas untuk membuat proyek baru.",
                 fontSize = 12.sp,
-                color = BrandSecondary,
-                textAlign = TextAlign.Center
+                color = BrandSecondary
               )
-              Spacer(modifier = Modifier.height(12.dp))
-              Surface(
-                modifier = Modifier
-                  .clip(RoundedCornerShape(8.dp))
-                  .clickable { onNewTaskClick() },
-                shape = RoundedCornerShape(8.dp),
-                color = BrandCharcoal
-              ) {
-                Text(
-                  text = "+ Create Task",
-                  fontSize = 12.sp,
-                  fontWeight = FontWeight.SemiBold,
-                  color = Color.White,
-                  modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
-                )
-              }
             }
+          }
+        } else {
+          items(filteredProjects, key = { it.id }) { proj ->
+            val projTasks = tasks.filter {
+              it.project.equals(proj.title, ignoreCase = true) ||
+                  it.category.equals(proj.category, ignoreCase = true)
+            }
+            val total = if (projTasks.isNotEmpty()) projTasks.size else proj.totalTasks
+            val done = if (projTasks.isNotEmpty()) projTasks.count { it.isCompleted } else proj.completedTasks
+            val progress = if (total > 0) (done.toFloat() / total.toFloat()).coerceIn(0f, 1f) else 0f
+            val pct = (progress * 100).toInt()
+
+            ExecutiveProjectCard(
+              project = proj,
+              total = total,
+              completed = done,
+              progress = progress,
+              progressPercent = pct,
+              onClick = {
+                HapticEngine.selection(context, haptic)
+                selectedProjectId = proj.id
+              }
+            )
+          }
+        }
+      }
+    } else {
+      // DEEP-DIVE PROJECT DETAIL VIEW
+      ProjectDetailView(
+        project = currentProject,
+        tasks = tasks.filter {
+          it.project.equals(currentProject.title, ignoreCase = true) ||
+              it.category.equals(currentProject.category, ignoreCase = true)
+        },
+        onBack = { selectedProjectId = null },
+        onTaskClick = onTaskClick,
+        onToggleTask = onToggleTaskComplete,
+        onUpdateKanbanStatus = onUpdateKanbanStatus,
+        onAddTask = { title ->
+          onAddTaskToProject(title, currentProject.title, currentProject.category)
+        }
+      )
+    }
+  }
+
+  // Create Project Dialog
+  if (showNewProjectDialog) {
+    CreateProjectDialog(
+      onDismiss = { showNewProjectDialog = false },
+      onCreate = { title, cat, desc ->
+        onAddProject(title, cat, desc)
+        showNewProjectDialog = false
+      }
+    )
+  }
+}
+
+/**
+ * Executive Project Card Component with Dual-Metric Progress Bar.
+ */
+@Composable
+private fun ExecutiveProjectCard(
+  project: ProjectItem,
+  total: Int,
+  completed: Int,
+  progress: Float,
+  progressPercent: Int,
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier
+) {
+  val interactionSource = remember { MutableInteractionSource() }
+  val isPressed by interactionSource.collectIsPressedAsState()
+  val scale by animateFloatAsState(
+    targetValue = if (isPressed) 0.985f else 1.0f,
+    animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+    label = "proj_scale"
+  )
+
+  Surface(
+    modifier = modifier
+      .fillMaxWidth()
+      .graphicsLayer {
+        scaleX = scale
+        scaleY = scale
+      }
+      .shadow(
+        elevation = 0.5.dp,
+        shape = RoundedCornerShape(16.dp),
+        ambientColor = Color(0x06000000),
+        spotColor = Color(0x04000000)
+      )
+      .clip(RoundedCornerShape(16.dp))
+      .clickable(
+        interactionSource = interactionSource,
+        indication = null
+      ) { onClick() },
+    shape = RoundedCornerShape(16.dp),
+    color = Color.White,
+    border = BorderStroke(1.dp, BrandBorder)
+  ) {
+    Column(modifier = Modifier.padding(16.dp)) {
+      // Top Row: Category Pill + Health Status
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Surface(
+          shape = RoundedCornerShape(6.dp),
+          color = when (project.category) {
+            "College" -> BrandTerracottaBg
+            "Work" -> BrandOliveBg
+            else -> BrandTagBg
+          },
+          border = BorderStroke(
+            1.dp,
+            when (project.category) {
+              "College" -> BrandTerracotta.copy(alpha = 0.25f)
+              "Work" -> BrandOliveBorder
+              else -> BrandBorderLight
+            }
+          )
+        ) {
+          Text(
+            text = "${project.category.uppercase()} • ${project.code}",
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            color = when (project.category) {
+              "College" -> BrandTerracotta
+              "Work" -> BrandOlive
+              else -> BrandCharcoal
+            },
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
+          )
+        }
+
+        // Health Status Pill
+        Surface(
+          shape = RoundedCornerShape(10.dp),
+          color = if (progressPercent >= 100) BrandOliveBg else BrandCanvas
+        ) {
+          Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+          ) {
+            Box(
+              modifier = Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(if (progressPercent >= 100) BrandOlive else BrandCharcoal)
+            )
+            Text(
+              text = if (progressPercent >= 100) "Selesai" else if (progressPercent >= 50) "On Track" else "In Progress",
+              fontSize = 10.sp,
+              fontWeight = FontWeight.SemiBold,
+              color = if (progressPercent >= 100) BrandOlive else BrandCharcoal
+            )
           }
         }
       }
 
-      items(kanbanTasks, key = { it.id }) { task ->
-        val interactionSource = remember { MutableInteractionSource() }
-        val isPressed by interactionSource.collectIsPressedAsState()
-        val scale by animateFloatAsState(
-          targetValue = if (isPressed) 0.98f else 1.0f,
-          animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
-          label = "task_scale"
+      Spacer(modifier = Modifier.height(10.dp))
+
+      // Title & Description
+      Text(
+        text = project.title,
+        fontSize = 16.sp,
+        fontWeight = FontWeight.Bold,
+        color = BrandCharcoal,
+        letterSpacing = (-0.01).sp
+      )
+      if (project.description.isNotBlank()) {
+        Spacer(modifier = Modifier.height(3.dp))
+        Text(
+          text = project.description,
+          fontSize = 12.sp,
+          color = BrandSecondary,
+          maxLines = 2,
+          overflow = TextOverflow.Ellipsis
         )
+      }
 
-        Surface(
-          modifier = Modifier
-            .fillMaxWidth()
-            .graphicsLayer {
-              scaleX = scale
-              scaleY = scale
-            }
-            .shadow(1.dp, RoundedCornerShape(14.dp))
-            .clip(RoundedCornerShape(14.dp))
-            .clickable(
-              interactionSource = interactionSource,
-              indication = null
+      Spacer(modifier = Modifier.height(14.dp))
+
+      // Dual-metric Milestone Progress
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Text(
+          text = "$progressPercent% selesai",
+          fontSize = 12.sp,
+          fontWeight = FontWeight.Bold,
+          color = BrandCharcoal
+        )
+        Text(
+          text = "$completed/$total tugas",
+          fontSize = 11.5.sp,
+          fontWeight = FontWeight.Medium,
+          color = BrandSecondary
+        )
+      }
+
+      Spacer(modifier = Modifier.height(6.dp))
+
+      LinearProgressIndicator(
+        progress = { progress },
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(5.5.dp)
+          .clip(RoundedCornerShape(3.dp)),
+        color = if (progressPercent >= 100) BrandOlive else BrandCharcoal,
+        trackColor = BrandCanvas
+      )
+
+      Spacer(modifier = Modifier.height(10.dp))
+
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Text(
+          text = "Tap untuk lihat & kelola tugas →",
+          fontSize = 11.sp,
+          color = BrandSecondary,
+          fontWeight = FontWeight.Medium
+        )
+        Text(
+          text = "${total - completed} tersisa",
+          fontSize = 11.sp,
+          fontWeight = FontWeight.SemiBold,
+          color = if (total - completed > 0) BrandTerracotta else BrandOlive
+        )
+      }
+    }
+  }
+}
+
+/**
+ * Deep-Dive Project Detail View with 3 Clean Vertical Status Groups.
+ */
+@Composable
+private fun ProjectDetailView(
+  project: ProjectItem,
+  tasks: List<TaskItem>,
+  onBack: () -> Unit,
+  onTaskClick: (String) -> Unit,
+  onToggleTask: (String) -> Unit,
+  onUpdateKanbanStatus: (String, KanbanColumn) -> Unit,
+  onAddTask: (String) -> Unit
+) {
+  val context = LocalContext.current
+  val haptic = LocalHapticFeedback.current
+  var quickTaskTitle by remember { mutableStateOf("") }
+
+  val todoTasks = tasks.filter { !it.isCompleted && it.kanbanStatus != KanbanColumn.IN_PROGRESS }
+  val inProgressTasks = tasks.filter { !it.isCompleted && it.kanbanStatus == KanbanColumn.IN_PROGRESS }
+  val doneTasks = tasks.filter { it.isCompleted || it.kanbanStatus == KanbanColumn.DONE }
+
+  val total = tasks.size
+  val completed = doneTasks.size
+  val progress = if (total > 0) (completed.toFloat() / total.toFloat()).coerceIn(0f, 1f) else 0f
+  val progressPct = (progress * 100).toInt()
+
+  LazyColumn(
+    modifier = Modifier
+      .fillMaxSize()
+      .padding(horizontal = 20.dp),
+    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+      top = 12.dp,
+      bottom = 150.dp
+    ),
+    verticalArrangement = Arrangement.spacedBy(16.dp)
+  ) {
+    // 1. Back Navigation & Project Milestone Summary Card
+    item {
+      Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, BrandBorder)
+      ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Surface(
+              modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .clickable {
+                  HapticEngine.selection(context, haptic)
+                  onBack()
+                },
+              shape = RoundedCornerShape(8.dp),
+              color = BrandCanvas,
+              border = BorderStroke(1.dp, BrandBorderLight)
             ) {
-              haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-              onTaskClick(task.id)
-            },
-          shape = RoundedCornerShape(14.dp),
-          color = Color.White,
-          border = BorderStroke(1.dp, BrandBorder)
-        ) {
-          Column(modifier = Modifier.padding(14.dp)) {
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically
-            ) {
-              Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (task.priority == TaskPriority.HIGH) {
-                  Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = BrandTerracottaBg
-                  ) {
-                    Text(
-                      text = "High Priority",
-                      fontSize = 10.sp,
-                      fontWeight = FontWeight.Bold,
-                      color = BrandTerracotta,
-                      modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                  }
-                }
-                Surface(
-                  shape = RoundedCornerShape(4.dp),
-                  color = BrandTagBg
-                ) {
-                  Text(
-                    text = task.category,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = BrandCharcoal,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                  )
-                }
-              }
-
-              Icon(
-                imageVector = Icons.Default.MoreVert,
-                contentDescription = null,
-                tint = BrandSecondary,
-                modifier = Modifier.size(16.dp)
-              )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-              text = task.title,
-              fontSize = 14.sp,
-              fontWeight = FontWeight.SemiBold,
-              color = BrandCharcoal,
-              textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None
-            )
-
-            if (task.description.isNotEmpty()) {
-              Spacer(modifier = Modifier.height(4.dp))
-              Text(
-                text = task.description,
-                fontSize = 12.sp,
-                color = BrandSecondary,
-                maxLines = 2
-              )
-            }
-
-            if (task.tags.isNotEmpty()) {
-              Spacer(modifier = Modifier.height(8.dp))
-              Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                task.tags.take(2).forEach { t ->
-                  Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = BrandPillBg,
-                    border = BorderStroke(1.dp, BrandBorderLight)
-                  ) {
-                    Text(
-                      text = t,
-                      fontSize = 10.sp,
-                      color = BrandOlive,
-                      fontWeight = FontWeight.Medium,
-                      modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                  }
-                }
-              }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically
-            ) {
-              Text(
-                text = task.dueTime,
-                fontSize = 11.sp,
-                color = BrandSecondary
-              )
-
-              if (task.actualSubtasksTotal > 0) {
+              Row(
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+              ) {
+                Icon(
+                  imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                  contentDescription = null,
+                  tint = BrandCharcoal,
+                  modifier = Modifier.size(13.dp)
+                )
                 Text(
-                  text = "${task.actualSubtasksCompleted}/${task.actualSubtasksTotal} subtasks",
+                  text = "Semua Proyek",
                   fontSize = 11.sp,
                   fontWeight = FontWeight.Medium,
-                  color = BrandOlive
+                  color = BrandCharcoal
                 )
               }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Quick Kanban Status Actions
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.End,
-              verticalAlignment = Alignment.CenterVertically
+            Surface(
+              shape = RoundedCornerShape(6.dp),
+              color = BrandTagBg
             ) {
-              when (selectedKanbanColumn) {
-                KanbanColumn.TO_DO -> {
-                  Surface(
-                    modifier = Modifier
-                      .clip(RoundedCornerShape(6.dp))
-                      .clickable {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onUpdateKanbanStatus(task.id, KanbanColumn.IN_PROGRESS)
-                      },
-                    shape = RoundedCornerShape(6.dp),
-                    color = BrandCharcoal
-                  ) {
-                    Row(
-                      modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                      verticalAlignment = Alignment.CenterVertically,
-                      horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                      Text(
-                        text = "Start Sprint →",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
-                      )
-                    }
-                  }
-                }
-                KanbanColumn.IN_PROGRESS -> {
-                  Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Surface(
-                      modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .clickable {
-                          haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                          onUpdateKanbanStatus(task.id, KanbanColumn.TO_DO)
-                        },
-                      shape = RoundedCornerShape(6.dp),
-                      color = BrandPillBg,
-                      border = BorderStroke(1.dp, BrandBorderLight)
-                    ) {
-                      Text(
-                        text = "← To Do",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = BrandSecondary,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
-                      )
-                    }
-
-                    Surface(
-                      modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .clickable {
-                          haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                          onUpdateKanbanStatus(task.id, KanbanColumn.DONE)
-                        },
-                      shape = RoundedCornerShape(6.dp),
-                      color = BrandOlive
-                    ) {
-                      Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                      ) {
-                        Icon(
-                          imageVector = Icons.Default.Check,
-                          contentDescription = null,
-                          tint = Color.White,
-                          modifier = Modifier.size(12.dp)
-                        )
-                        Text(
-                          text = "Done",
-                          fontSize = 11.sp,
-                          fontWeight = FontWeight.SemiBold,
-                          color = Color.White
-                        )
-                      }
-                    }
-                  }
-                }
-                KanbanColumn.DONE -> {
-                  Surface(
-                    modifier = Modifier
-                      .clip(RoundedCornerShape(6.dp))
-                      .clickable {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onUpdateKanbanStatus(task.id, KanbanColumn.IN_PROGRESS)
-                      },
-                    shape = RoundedCornerShape(6.dp),
-                    color = BrandPillBg,
-                    border = BorderStroke(1.dp, BrandBorderLight)
-                  ) {
-                    Text(
-                      text = "↺ Reopen",
-                      fontSize = 11.sp,
-                      fontWeight = FontWeight.Medium,
-                      color = BrandSecondary,
-                      modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
-                    )
-                  }
-                }
-                KanbanColumn.BACKLOG -> {
-                  Surface(
-                    modifier = Modifier
-                      .clip(RoundedCornerShape(6.dp))
-                      .clickable {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onUpdateKanbanStatus(task.id, KanbanColumn.TO_DO)
-                      },
-                    shape = RoundedCornerShape(6.dp),
-                    color = BrandCharcoal
-                  ) {
-                    Text(
-                      text = "Move to To Do →",
-                      fontSize = 11.sp,
-                      fontWeight = FontWeight.SemiBold,
-                      color = Color.White,
-                      modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                    )
-                  }
-                }
-                KanbanColumn.CANCELED -> {
-                  Surface(
-                    modifier = Modifier
-                      .clip(RoundedCornerShape(6.dp))
-                      .clickable {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onUpdateKanbanStatus(task.id, KanbanColumn.TO_DO)
-                      },
-                    shape = RoundedCornerShape(6.dp),
-                    color = BrandPillBg,
-                    border = BorderStroke(1.dp, BrandBorderLight)
-                  ) {
-                    Text(
-                      text = "↺ Restore",
-                      fontSize = 11.sp,
-                      fontWeight = FontWeight.Medium,
-                      color = BrandSecondary,
-                      modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
-                    )
-                  }
-                }
-                else -> {}
-              }
+              Text(
+                text = project.code,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = BrandCharcoal,
+                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+              )
             }
           }
+
+          Spacer(modifier = Modifier.height(12.dp))
+
+          Text(
+            text = project.title,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = BrandCharcoal
+          )
+          if (project.description.isNotBlank()) {
+            Spacer(modifier = Modifier.height(3.dp))
+            Text(
+              text = project.description,
+              fontSize = 12.5.sp,
+              color = BrandSecondary
+            )
+          }
+
+          Spacer(modifier = Modifier.height(14.dp))
+
+          // Progress
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+          ) {
+            Text(
+              text = "$progressPct% Selesai",
+              fontSize = 12.sp,
+              fontWeight = FontWeight.Bold,
+              color = BrandCharcoal
+            )
+            Text(
+              text = "$completed dari $total tugas selesai",
+              fontSize = 11.5.sp,
+              color = BrandSecondary
+            )
+          }
+
+          Spacer(modifier = Modifier.height(6.dp))
+
+          LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier
+              .fillMaxWidth()
+              .height(5.dp)
+              .clip(RoundedCornerShape(2.5.dp)),
+            color = BrandOlive,
+            trackColor = BrandCanvas
+          )
+        }
+      }
+    }
+
+    // 2. Fast Inline Task Adder
+    item {
+      Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, BrandBorder)
+      ) {
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+          OutlinedTextField(
+            value = quickTaskTitle,
+            onValueChange = { quickTaskTitle = it },
+            placeholder = { Text("Tambah tugas untuk proyek ini...", fontSize = 12.sp, color = BrandSecondary) },
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+            colors = OutlinedTextFieldDefaults.colors(
+              focusedBorderColor = Color.Transparent,
+              unfocusedBorderColor = Color.Transparent,
+              focusedContainerColor = Color.Transparent,
+              unfocusedContainerColor = Color.Transparent
+            )
+          )
+
+          Button(
+            onClick = {
+              if (quickTaskTitle.isNotBlank()) {
+                HapticEngine.success(context, haptic)
+                onAddTask(quickTaskTitle.trim())
+                quickTaskTitle = ""
+              }
+            },
+            enabled = quickTaskTitle.isNotBlank(),
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = BrandCharcoal),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+          ) {
+            Text("Tambah", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+          }
+        }
+      }
+    }
+
+    // 3. Section: Sedang Berjalan (In Progress)
+    if (inProgressTasks.isNotEmpty()) {
+      item {
+        ProjectTaskSectionHeader(
+          title = "Sedang Berjalan",
+          count = inProgressTasks.size,
+          indicatorColor = LinearInProgressAmber
+        )
+      }
+      items(inProgressTasks, key = { it.id }) { task ->
+        ProjectTaskRowItem(
+          task = task,
+          onToggle = { onToggleTask(task.id) },
+          onClick = { onTaskClick(task.id) },
+          onSetStatus = { col -> onUpdateKanbanStatus(task.id, col) }
+        )
+      }
+    }
+
+    // 4. Section: Belum Selesai (To Do)
+    item {
+      ProjectTaskSectionHeader(
+        title = "Belum Dikerjakan",
+        count = todoTasks.size,
+        indicatorColor = BrandCharcoal
+      )
+    }
+    if (todoTasks.isEmpty()) {
+      item {
+        Text(
+          text = "Tidak ada tugas tertunda di bagian ini.",
+          fontSize = 11.5.sp,
+          color = BrandSecondary,
+          modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+        )
+      }
+    } else {
+      items(todoTasks, key = { it.id }) { task ->
+        ProjectTaskRowItem(
+          task = task,
+          onToggle = { onToggleTask(task.id) },
+          onClick = { onTaskClick(task.id) },
+          onSetStatus = { col -> onUpdateKanbanStatus(task.id, col) }
+        )
+      }
+    }
+
+    // 5. Section: Selesai (Done)
+    if (doneTasks.isNotEmpty()) {
+      item {
+        ProjectTaskSectionHeader(
+          title = "Selesai",
+          count = doneTasks.size,
+          indicatorColor = LinearDoneGreen
+        )
+      }
+      items(doneTasks, key = { it.id }) { task ->
+        ProjectTaskRowItem(
+          task = task,
+          onToggle = { onToggleTask(task.id) },
+          onClick = { onTaskClick(task.id) },
+          onSetStatus = { col -> onUpdateKanbanStatus(task.id, col) }
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun ProjectTaskSectionHeader(
+  title: String,
+  count: Int,
+  indicatorColor: Color
+) {
+  Row(
+    modifier = Modifier
+      .fillMaxWidth()
+      .padding(top = 4.dp, bottom = 2.dp),
+    verticalAlignment = Alignment.CenterVertically,
+    horizontalArrangement = Arrangement.spacedBy(6.dp)
+  ) {
+    Box(
+      modifier = Modifier
+        .size(6.dp)
+        .background(indicatorColor, CircleShape)
+    )
+    Text(
+      text = "$title ($count)",
+      fontSize = 12.sp,
+      fontWeight = FontWeight.Bold,
+      color = BrandCharcoal
+    )
+  }
+}
+
+@Composable
+private fun ProjectTaskRowItem(
+  task: TaskItem,
+  onToggle: () -> Unit,
+  onClick: () -> Unit,
+  onSetStatus: (KanbanColumn) -> Unit
+) {
+  val context = LocalContext.current
+  val haptic = LocalHapticFeedback.current
+  val isDone = task.isCompleted
+
+  Surface(
+    modifier = Modifier
+      .fillMaxWidth()
+      .clip(RoundedCornerShape(12.dp))
+      .clickable { onClick() },
+    shape = RoundedCornerShape(12.dp),
+    color = Color.White,
+    border = BorderStroke(0.75.dp, LinearBorderHairline)
+  ) {
+    Row(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 12.dp, vertical = 10.dp),
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+      // Checkbox circle
+      Box(
+        modifier = Modifier
+          .size(30.dp)
+          .clip(CircleShape)
+          .clickable {
+            if (!isDone) HapticEngine.success(context, haptic) else HapticEngine.selection(context, haptic)
+            onToggle()
+          },
+        contentAlignment = Alignment.Center
+      ) {
+        Icon(
+          imageVector = if (isDone) Icons.Outlined.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
+          contentDescription = null,
+          tint = if (isDone) LinearDoneGreen else BrandSecondary,
+          modifier = Modifier.size(20.dp)
+        )
+      }
+
+      // Title & Subtext
+      Column(modifier = Modifier.weight(1f)) {
+        Text(
+          text = task.title,
+          fontSize = 13.sp,
+          fontWeight = FontWeight.SemiBold,
+          color = if (isDone) BrandSecondary.copy(alpha = 0.6f) else BrandCharcoal,
+          textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None,
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis
+        )
+        if (task.dueDate.isNotBlank()) {
+          Text(
+            text = task.dueDate,
+            fontSize = 10.5.sp,
+            color = BrandSecondary
+          )
+        }
+      }
+
+      // Quick Status Pill
+      if (!isDone) {
+        Surface(
+          shape = RoundedCornerShape(6.dp),
+          color = if (task.kanbanStatus == KanbanColumn.IN_PROGRESS) LinearInProgressAmber.copy(alpha = 0.15f) else BrandCanvas,
+          modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .clickable {
+              HapticEngine.selection(context, haptic)
+              if (task.kanbanStatus == KanbanColumn.IN_PROGRESS) {
+                onSetStatus(KanbanColumn.TO_DO)
+              } else {
+                onSetStatus(KanbanColumn.IN_PROGRESS)
+              }
+            }
+        ) {
+          Text(
+            text = if (task.kanbanStatus == KanbanColumn.IN_PROGRESS) "Sedang Jalan" else "Mulai",
+            fontSize = 10.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (task.kanbanStatus == KanbanColumn.IN_PROGRESS) Color(0xFFB45309) else BrandCharcoal,
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+          )
         }
       }
     }
   }
 }
-}
 
+/**
+ * Modal Dialog to Create a New Project.
+ */
+@Composable
+private fun CreateProjectDialog(
+  onDismiss: () -> Unit,
+  onCreate: (String, String, String) -> Unit
+) {
+  val context = LocalContext.current
+  val haptic = LocalHapticFeedback.current
+  var title by remember { mutableStateOf("") }
+  var category by remember { mutableStateOf("College") }
+  var description by remember { mutableStateOf("") }
+
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    title = {
+      Text(
+        text = "Buat Proyek Baru",
+        fontSize = 17.sp,
+        fontWeight = FontWeight.Bold,
+        color = BrandCharcoal
+      )
+    },
+    text = {
+      Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+      ) {
+        OutlinedTextField(
+          value = title,
+          onValueChange = { title = it },
+          label = { Text("Nama Proyek", fontSize = 12.sp) },
+          placeholder = { Text("Contoh: Skripsi / Tugas Akhir", fontSize = 12.sp) },
+          singleLine = true,
+          modifier = Modifier.fillMaxWidth()
+        )
+
+        // Category Selector
+        Text("Kategori:", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = BrandCharcoal)
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+          listOf("College" to "Kuliah", "Work" to "Kerja", "Personal" to "Pribadi").forEach { (catKey, label) ->
+            val isSelected = (category == catKey)
+            Surface(
+              shape = RoundedCornerShape(8.dp),
+              color = if (isSelected) BrandCharcoal else BrandCanvas,
+              border = if (!isSelected) BorderStroke(1.dp, BrandBorderLight) else null,
+              modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(8.dp))
+                .clickable {
+                  HapticEngine.selection(context, haptic)
+                  category = catKey
+                }
+            ) {
+              Text(
+                text = label,
+                fontSize = 11.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = if (isSelected) Color.White else BrandCharcoal,
+                modifier = Modifier.padding(vertical = 7.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+              )
+            }
+          }
+        }
+
+        OutlinedTextField(
+          value = description,
+          onValueChange = { description = it },
+          label = { Text("Catatan / Deskripsi (Opsional)", fontSize = 12.sp) },
+          maxLines = 3,
+          modifier = Modifier.fillMaxWidth()
+        )
+      }
+    },
+    confirmButton = {
+      Button(
+        onClick = {
+          if (title.isNotBlank()) {
+            HapticEngine.success(context, haptic)
+            onCreate(title.trim(), category, description.trim())
+          }
+        },
+        enabled = title.isNotBlank(),
+        colors = ButtonDefaults.buttonColors(containerColor = BrandCharcoal),
+        shape = RoundedCornerShape(8.dp)
+      ) {
+        Text("Buat Proyek", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+      }
+    },
+    dismissButton = {
+      OutlinedButton(
+        onClick = onDismiss,
+        shape = RoundedCornerShape(8.dp)
+      ) {
+        Text("Batal", color = BrandSecondary, fontSize = 12.sp)
+      }
+    },
+    containerColor = Color.White,
+    shape = RoundedCornerShape(16.dp)
+  )
+}

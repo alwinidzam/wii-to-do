@@ -46,7 +46,9 @@ data class TaskItem(
   val subtasksCompletedCount: Int? = null,
   val subtasksTotalCount: Int? = null,
   val isTomorrow: Boolean = false,
-  val courseName: String? = null
+  val courseName: String? = null,
+  val isDeleted: Boolean = false,
+  val deletedAt: Long? = null
 ) {
   val actualSubtaskBadge: String?
     get() = if (subtasks.isNotEmpty()) "${subtasks.count { it.isCompleted }}/${subtasks.size} sub-tasks" else subtaskBadge

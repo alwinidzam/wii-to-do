@@ -32,7 +32,7 @@ import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -54,8 +54,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.UserProfile
+import com.example.ui.components.UnifiedTopAppBar
 import com.example.ui.components.VerifiedBadgeIcon
 import com.example.ui.components.WiiBrandLogo
+import com.example.ui.theme.HapticEngine
 import com.example.ui.i18n.AppLanguage
 import com.example.ui.i18n.LanguageSwitchPill
 import com.example.ui.i18n.Translations
@@ -109,61 +111,44 @@ fun ProfileScreen(
       .fillMaxSize()
       .background(BrandCanvas)
   ) {
-    // 1. Fixed Top Bar (Pinned at top, does not scroll)
-    Surface(
-      modifier = Modifier.fillMaxWidth(),
-      color = BrandCanvas
-    ) {
-      Row(
-        modifier = Modifier
-          .fillMaxWidth()
-          .padding(start = 20.dp, end = 20.dp, top = if (topInset > 0.dp) topInset else 8.dp, bottom = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        Row(
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(10.dp)
+    // 1. Unified Fixed Top Bar (Rock-solid consistency with other tabs)
+    UnifiedTopAppBar(
+      title = "wii to do",
+      subtitle = if (currentLanguage == AppLanguage.ID) "pengaturan & profil" else "settings & profile",
+      showVerifiedBadge = false,
+      actions = {
+        // Language Toggle Pill
+        Surface(
+          shape = RoundedCornerShape(10.dp),
+          color = Color.White,
+          border = BorderStroke(1.dp, BrandBorder)
         ) {
-          WiiBrandLogo(size = 30.dp)
-          Column {
-            Text(
-              text = "wii to do",
-              fontSize = 16.sp,
-              fontWeight = FontWeight.Bold,
-              color = BrandCharcoal,
-              letterSpacing = (-0.02).sp
-            )
-            Text(
-              text = if (currentLanguage == AppLanguage.ID) "pengaturan" else "settings",
-              fontSize = 10.sp,
-              color = BrandSecondary,
-              fontWeight = FontWeight.Medium,
-              letterSpacing = 0.5.sp
-            )
-          }
-        }
-
-        Row(
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-          Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = BrandOliveBg,
-            border = BorderStroke(1.dp, BrandOliveBorder)
-          ) {
-            Text(
-              text = "PRO",
-              fontSize = 11.sp,
-              fontWeight = FontWeight.Bold,
-              color = BrandOlive,
-              modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
-            )
+          Row(modifier = Modifier.padding(3.dp)) {
+            listOf(AppLanguage.ID to "ID", AppLanguage.EN to "EN").forEach { (lang, label) ->
+              val isSelected = (currentLanguage == lang)
+              Surface(
+                modifier = Modifier
+                  .clip(RoundedCornerShape(8.dp))
+                  .clickable {
+                    HapticEngine.selection(context, haptic)
+                    onLanguageSelected(lang)
+                  },
+                shape = RoundedCornerShape(8.dp),
+                color = if (isSelected) BrandCharcoal else Color.Transparent
+              ) {
+                Text(
+                  text = label,
+                  fontSize = 11.sp,
+                  fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                  color = if (isSelected) Color.White else BrandSecondary,
+                  modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                )
+              }
+            }
           }
         }
       }
-    }
+    )
 
     LazyColumn(
       modifier = Modifier

@@ -48,6 +48,7 @@ class ToDoViewModel(
 ) : ViewModel() {
 
   val tasks: StateFlow<List<TaskItem>> = repository.tasks
+  val deletedTasks: StateFlow<List<TaskItem>> = repository.deletedTasks
   val projects: StateFlow<List<ProjectItem>> = repository.projects
   val schedule: StateFlow<List<ScheduleCommitment>> = repository.schedule
   val userProfile: StateFlow<UserProfile> = repository.userProfile
@@ -211,8 +212,24 @@ class ToDoViewModel(
     repository.toggleTaskCompletion(taskId)
   }
 
-  fun deleteTask(taskId: String) {
-    repository.deleteTask(taskId)
+  fun deleteTask(taskId: String): TaskItem? {
+    return repository.deleteTask(taskId)
+  }
+
+  fun restoreTask(taskId: String): TaskItem? {
+    return repository.restoreTask(taskId)
+  }
+
+  fun permanentlyDeleteTask(taskId: String) {
+    repository.permanentlyDeleteTask(taskId)
+  }
+
+  fun emptyTrash() {
+    repository.emptyTrash()
+  }
+
+  fun addProject(title: String, category: String, description: String = "", code: String = "") {
+    repository.addProject(title, category, description, code)
   }
 
   fun toggleSubTask(taskId: String, subtaskId: String) {

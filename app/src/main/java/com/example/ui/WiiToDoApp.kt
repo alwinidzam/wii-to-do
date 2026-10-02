@@ -30,13 +30,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import com.example.data.model.TaskPriority
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -101,6 +103,7 @@ fun WiiToDoApp(
   val showLevelUpModal by viewModel.showLevelUpModal.collectAsState()
   val isAiGenerating by viewModel.isGeneratingAiSubtasks.collectAsState()
   val academicCourses by viewModel.academicCourses.collectAsState()
+  val deletedTasks by viewModel.deletedTasks.collectAsState()
 
   var selectedDetailTaskId by remember { mutableStateOf("task_contrast_matrix") }
   var subTaskSheetParentId by remember { mutableStateOf<String?>(null) }
@@ -278,11 +281,29 @@ fun WiiToDoApp(
                     viewModel.switchToTab(AppDestination.Profile)
                   },
                   userName = userProfile.name.split(" ").firstOrNull() ?: "Alwi",
-                  onDeleteTask = { id -> viewModel.deleteTask(id) },
+                  onDeleteTask = { id ->
+                    val deleted = viewModel.deleteTask(id)
+                    if (deleted != null) {
+                      coroutineScope.launch {
+                        val result = snackbarHostState.showSnackbar(
+                          message = "\"${deleted.title.take(20)}...\" dipindahkan ke Sampah",
+                          actionLabel = "PULIHKAN",
+                          duration = SnackbarDuration.Short
+                        )
+                        if (result == SnackbarResult.ActionPerformed) {
+                          viewModel.restoreTask(id)
+                        }
+                      }
+                    }
+                  },
                   userProfile = userProfile,
                   onMilestoneClick = { viewModel.navigateTo(AppDestination.MilestoneJourney) },
                   currentLanguage = currentLanguage,
-                  onLanguageSelected = { viewModel.setLanguage(it) }
+                  onLanguageSelected = { viewModel.setLanguage(it) },
+                  deletedTasks = deletedTasks,
+                  onRestoreTask = { id -> viewModel.restoreTask(id) },
+                  onPermanentlyDeleteTask = { id -> viewModel.permanentlyDeleteTask(id) },
+                  onEmptyTrash = { viewModel.emptyTrash() }
                 )
               }
 
@@ -312,7 +333,20 @@ fun WiiToDoApp(
                     viewModel.navigateTo(AppDestination.TaskDetail(id))
                   },
                   onNewTaskClick = { viewModel.navigateTo(AppDestination.CreateTask) },
-                  onUpdateKanbanStatus = { id, col -> viewModel.updateKanbanStatus(id, col) }
+                  onUpdateKanbanStatus = { id, col -> viewModel.updateKanbanStatus(id, col) },
+                  onToggleTaskComplete = { viewModel.toggleTaskCompletion(it) },
+                  onAddProject = { title, cat, desc -> viewModel.addProject(title, cat, desc) },
+                  onAddTaskToProject = { title, proj, cat ->
+                    viewModel.addTask(
+                      title = title,
+                      description = "",
+                      category = cat,
+                      project = proj,
+                      priority = TaskPriority.MED,
+                      dueTime = "Today",
+                      dueDate = "Today"
+                    )
+                  }
                 )
               }
 
