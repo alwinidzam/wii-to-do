@@ -709,7 +709,6 @@ fun HomeScreen(
             )
           }
         }
-      }
 
       // Minimalist Footer
       item {

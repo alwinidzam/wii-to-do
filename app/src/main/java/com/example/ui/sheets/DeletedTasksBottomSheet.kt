@@ -198,7 +198,7 @@ fun DeletedTasksBottomSheet(
           modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 40.dp),
-          horizontalAlignment = Alignment.CenterAlignmentLine(Alignment.CenterHorizontally),
+          horizontalAlignment = Alignment.CenterHorizontally,
           verticalArrangement = Arrangement.Center
         ) {
           Surface(
@@ -374,7 +374,7 @@ fun DeletedTasksBottomSheet(
             }
             Button(
               onClick = {
-                HapticEngine.heavy(context, haptic)
+                HapticEngine.warning(context, haptic)
                 showEmptyConfirm = false
                 onEmptyTrash()
               },

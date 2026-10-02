@@ -49,6 +49,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -93,6 +94,7 @@ fun ProfileScreen(
   currentLanguage: AppLanguage = AppLanguage.ID,
   onLanguageSelected: (AppLanguage) -> Unit = {}
 ) {
+  val context = LocalContext.current
   val haptic = LocalHapticFeedback.current
   val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
@@ -253,7 +255,7 @@ fun ProfileScreen(
               ) {
                 Box(contentAlignment = Alignment.Center) {
                   Icon(
-                    imageVector = Icons.Default.WorkspacePremium,
+                    imageVector = Icons.Default.EmojiEvents,
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(18.dp)
