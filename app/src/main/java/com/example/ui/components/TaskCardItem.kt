@@ -78,6 +78,7 @@ import com.example.ui.theme.BrandCard
 import com.example.ui.theme.BrandCharcoal
 import com.example.ui.theme.BrandCheckboxBorder
 import com.example.ui.theme.BrandDotNeutral
+import com.example.ui.theme.BrandPillBg
 import com.example.ui.theme.BrandSecondary
 import com.example.ui.theme.BrandTagBg
 import com.example.ui.theme.BrandTerracotta
