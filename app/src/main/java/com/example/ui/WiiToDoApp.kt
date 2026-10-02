@@ -100,6 +100,7 @@ fun WiiToDoApp(
   val celebrationTask by viewModel.lastCompletedCelebration.collectAsState()
   val showLevelUpModal by viewModel.showLevelUpModal.collectAsState()
   val isAiGenerating by viewModel.isGeneratingAiSubtasks.collectAsState()
+  val academicCourses by viewModel.academicCourses.collectAsState()
 
   var selectedDetailTaskId by remember { mutableStateOf("task_contrast_matrix") }
   var subTaskSheetParentId by remember { mutableStateOf<String?>(null) }
@@ -386,13 +387,16 @@ fun WiiToDoApp(
           AppDestination.CreateTask -> {
             CreateTaskScreen(
               onClose = { viewModel.navigateBack() },
-              onTaskCreated = { title, desc, cat, proj, prio, dueTime, dueDate, withAiBreakdown ->
-                val newTaskId = viewModel.addTask(title, desc, cat, proj, prio, dueTime, dueDate)
+              courses = academicCourses,
+              onAddNewCourse = { viewModel.addAcademicCourse(it) },
+              onTaskCreated = { title, desc, cat, proj, prio, dueTime, dueDate, withAiBreakdown, courseName ->
+                val newTaskId = viewModel.addTask(title, desc, cat, proj, prio, dueTime, dueDate, courseName)
                 if (withAiBreakdown) {
                   viewModel.generateAiSubtasksForTask(newTaskId)
                 }
                 coroutineScope.launch {
-                  val message = if (withAiBreakdown) "Task added with AI subtasks to $proj" else "Task added to $proj"
+                  val targetScope = if (!courseName.isNullOrBlank()) courseName else proj
+                  val message = if (withAiBreakdown) "Task added with AI subtasks to $targetScope" else "Task added to $targetScope"
                   snackbarHostState.showSnackbar(message)
                 }
                 viewModel.navigateBack()
@@ -579,11 +583,14 @@ fun WiiToDoApp(
       ) {
         AddTaskBottomSheet(
           onDismiss = { showAddTaskBottomSheet = false },
-          onTaskCreated = { title, desc, cat, proj, prio, dueTime, dueDate ->
-            viewModel.addTask(title, desc, cat, proj, prio, dueTime, dueDate)
+          courses = academicCourses,
+          onAddNewCourse = { viewModel.addAcademicCourse(it) },
+          onTaskCreated = { title, desc, cat, proj, prio, dueTime, dueDate, courseName ->
+            viewModel.addTask(title, desc, cat, proj, prio, dueTime, dueDate, courseName)
             showAddTaskBottomSheet = false
             coroutineScope.launch {
-              snackbarHostState.showSnackbar("Task added to $cat")
+              val targetLabel = if (!courseName.isNullOrBlank()) courseName else cat
+              snackbarHostState.showSnackbar("Task added to $targetLabel")
             }
           }
         )

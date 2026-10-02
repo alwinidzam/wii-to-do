@@ -147,11 +147,6 @@ fun ProfileScreen(
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-          LanguageSwitchPill(
-            currentLanguage = currentLanguage,
-            onLanguageSelected = onLanguageSelected
-          )
-
           Surface(
             shape = RoundedCornerShape(12.dp),
             color = BrandOliveBg,

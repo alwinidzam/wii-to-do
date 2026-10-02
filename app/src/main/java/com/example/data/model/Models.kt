@@ -253,3 +253,42 @@ data class ShareCardConfig(
   val customQuote: String = "Building focus, one architectural brick at a time."
 )
 
+data class AcademicCourse(
+  val id: String,
+  val code: String,       // e.g. "SO", "PW", "SD", "AI"
+  val name: String,       // e.g. "Sistem Operasi"
+  val colorHex: Long = 0xFF4F46E5
+)
+
+object AcademicCourseDefaults {
+  val PRESET_COURSES = listOf(
+    AcademicCourse("c_so", "SO", "Sistem Operasi", 0xFF10B981),
+    AcademicCourse("c_pw", "PW", "Pemrograman Web", 0xFF4F46E5),
+    AcademicCourse("c_sd", "SD", "Struktur Data", 0xFFF59E0B),
+    AcademicCourse("c_ai", "AI", "Kecerdasan Buatan", 0xFF8B5CF6),
+    AcademicCourse("c_bd", "BD", "Basis Data", 0xFF0284C7)
+  )
+
+  val PALETTE = listOf(
+    0xFF10B981, // Emerald
+    0xFF4F46E5, // Indigo
+    0xFFF59E0B, // Amber
+    0xFF8B5CF6, // Purple
+    0xFFE11D48, // Rose
+    0xFF0284C7, // Sky
+    0xFF059669, // Forest
+    0xFFD97706  // Tangerine
+  )
+
+  fun generateCode(name: String): String {
+    val words = name.trim().split("\\s+".toRegex()).filter { it.isNotEmpty() }
+    return when {
+      words.size >= 2 -> words.take(3).map { it.first().uppercase() }.joinToString("")
+      words.size == 1 && words[0].length >= 3 -> words[0].take(3).uppercase()
+      words.size == 1 -> words[0].uppercase()
+      else -> "SUB"
+    }
+  }
+}
+
+

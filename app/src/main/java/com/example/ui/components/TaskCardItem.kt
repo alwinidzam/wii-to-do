@@ -4,9 +4,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -15,6 +12,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,15 +33,20 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -56,7 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -64,8 +67,10 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.KanbanColumn
 import com.example.data.model.TaskItem
 import com.example.data.model.TaskPriority
+import com.example.ui.theme.AppleSystemBlue
 import com.example.ui.theme.BrandBorder
 import com.example.ui.theme.BrandBorderLight
 import com.example.ui.theme.BrandCanvas
@@ -77,25 +82,20 @@ import com.example.ui.theme.BrandSecondary
 import com.example.ui.theme.BrandTagBg
 import com.example.ui.theme.BrandTerracotta
 import com.example.ui.theme.BrandTerracottaBg
-import com.example.ui.theme.AppleSystemBlue
+import com.example.ui.theme.HapticEngine
 import kotlinx.coroutines.delay
 
 /**
- * TaskCardItem matching the reference HTML/CSS specification:
- * - Container: bg-white border border-brand-border rounded-2xl p-4 shadow-card
- * - Custom Architectural Checkbox: 20x20 rounded-lg (6dp radius) with border-2 #D4D2CB
- * - Task Title: 14sp SemiBold (600) text-brand-charcoal
- * - Tags & Metadata:
- *   - Category tag: bg #F2F1ED text-brand-charcoal
- *   - Time: clock/calendar icon + time (text-brand-secondary)
- *   - High priority tag: text-brand-terracotta bg-brand-terracottaBg "● High priority"
- *   - Urgency tag: "Due in 4h"
- *   - Attachment tag: "3 files" with paperclip icon
- *   - Sub-task tag: "1/3 sub-tasks"
- * - Sub-task Progress Bar: 96x6dp bar with brand-charcoal progress
- * - Explicit Delete Button: Triggers smooth slide-out animation to the right before task removal
- * - Priority Dot: 8dp circle (Terracotta, Neutral, or Light border)
+ * Super High-End Apple HIG & Linear-Grade Task Item.
+ * Features:
+ * - Dual-direction Swipe-to-Triage (Swipe right = Complete, Swipe left = Delete)
+ * - Linear semantic status rings with tactile spring feedback
+ * - Linear 3-bar cellular priority signal
+ * - Clean 0.75dp hairline border with subtle background tint
+ * - Zero clipping on metadata tags
+ * - Tactile Taptic Engine haptic responses
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskCardItem(
   task: TaskItem,
@@ -104,52 +104,147 @@ fun TaskCardItem(
   modifier: Modifier = Modifier,
   onDelete: (() -> Unit)? = null
 ) {
+  val context = LocalContext.current
   val haptic = LocalHapticFeedback.current
   var isExpanded by remember { mutableStateOf(false) }
   var isDeleting by remember { mutableStateOf(false) }
 
   val isDone = task.isCompleted
 
-  val titleColor = if (isDone) BrandSecondary.copy(alpha = 0.6f) else BrandCharcoal
+  val titleColor = if (isDone) BrandSecondary.copy(alpha = 0.55f) else BrandCharcoal
   val textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None
 
-  // Once slide-out completes, trigger the repository delete callback
+  // Once slide-out completes, trigger delete
   LaunchedEffect(isDeleting) {
     if (isDeleting) {
-      delay(320)
+      delay(280)
       onDelete?.invoke()
     }
   }
+
+  val dismissState = rememberSwipeToDismissBoxState(
+    confirmValueChange = { dismissValue ->
+      when (dismissValue) {
+        SwipeToDismissBoxValue.StartToEnd -> {
+          // Swiped Right -> Mark Done
+          HapticEngine.success(context, haptic)
+          onToggleComplete()
+          false // Reset back smoothly after marking complete
+        }
+        SwipeToDismissBoxValue.EndToStart -> {
+          // Swiped Left -> Delete
+          if (onDelete != null) {
+            HapticEngine.warning(context, haptic)
+            isDeleting = true
+            true
+          } else {
+            false
+          }
+        }
+        SwipeToDismissBoxValue.Settled -> false
+      }
+    }
+  )
 
   AnimatedVisibility(
     visible = !isDeleting,
     enter = fadeIn(animationSpec = tween(200)),
     exit = slideOutHorizontally(
-      targetOffsetX = { fullWidth -> fullWidth },
-      animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
-    ) + fadeOut(animationSpec = tween(durationMillis = 200)) + shrinkVertically(animationSpec = tween(durationMillis = 300)),
+      targetOffsetX = { fullWidth -> -fullWidth },
+      animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing)
+    ) + fadeOut(animationSpec = tween(durationMillis = 180)) + shrinkVertically(animationSpec = tween(durationMillis = 260)),
     modifier = modifier
   ) {
-    TaskCardContent(
-      task = task,
-      isDone = isDone,
-      titleColor = titleColor,
-      textDecoration = textDecoration,
-      isExpanded = isExpanded,
-      onToggleExpand = { isExpanded = !isExpanded },
-      onToggleComplete = onToggleComplete,
-      onClick = onClick,
-      onDeleteClick = if (onDelete != null) {
-        {
-          haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-          isDeleting = true
+    SwipeToDismissBox(
+      state = dismissState,
+      enableDismissFromStartToEnd = true,
+      enableDismissFromEndToStart = onDelete != null,
+      backgroundContent = {
+        val direction = dismissState.dismissDirection
+        val color by animateColorAsState(
+          targetValue = when (direction) {
+            SwipeToDismissBoxValue.StartToEnd -> LinearDoneGreen
+            SwipeToDismissBoxValue.EndToStart -> LinearUrgentRed
+            else -> Color.Transparent
+          },
+          label = "swipe_bg_color"
+        )
+
+        Box(
+          modifier = Modifier
+            .fillMaxSize()
+            .clip(RoundedCornerShape(14.dp))
+            .background(color)
+            .padding(horizontal = 20.dp),
+          contentAlignment = when (direction) {
+            SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
+            else -> Alignment.CenterEnd
+          }
+        ) {
+          when (direction) {
+            SwipeToDismissBoxValue.StartToEnd -> {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+              ) {
+                Icon(
+                  imageVector = Icons.Default.Check,
+                  contentDescription = "Complete",
+                  tint = Color.White,
+                  modifier = Modifier.size(20.dp)
+                )
+                Text(
+                  text = if (isDone) "Reopen" else "Complete",
+                  color = Color.White,
+                  fontWeight = FontWeight.Bold,
+                  fontSize = 13.sp
+                )
+              }
+            }
+            SwipeToDismissBoxValue.EndToStart -> {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+              ) {
+                Text(
+                  text = "Delete",
+                  color = Color.White,
+                  fontWeight = FontWeight.Bold,
+                  fontSize = 13.sp
+                )
+                Icon(
+                  imageVector = Icons.Outlined.Delete,
+                  contentDescription = "Delete",
+                  tint = Color.White,
+                  modifier = Modifier.size(20.dp)
+                )
+              }
+            }
+            else -> {}
+          }
         }
-      } else null
-    )
+      }
+    ) {
+      TaskCardContent(
+        task = task,
+        isDone = isDone,
+        titleColor = titleColor,
+        textDecoration = textDecoration,
+        isExpanded = isExpanded,
+        onToggleExpand = { isExpanded = !isExpanded },
+        onToggleComplete = onToggleComplete,
+        onClick = onClick,
+        onDeleteClick = if (onDelete != null) {
+          {
+            HapticEngine.warning(context, haptic)
+            isDeleting = true
+          }
+        } else null
+      )
+    }
   }
 }
 
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun TaskCardContent(
   task: TaskItem,
@@ -163,139 +258,126 @@ private fun TaskCardContent(
   onDeleteClick: (() -> Unit)?,
   modifier: Modifier = Modifier
 ) {
+  val context = LocalContext.current
   val haptic = LocalHapticFeedback.current
-  val cardElevation = if (isDone) 0.dp else 2.dp
-  val cardAlpha = if (isDone) 0.65f else 1.0f
+  val cardAlpha = if (isDone) 0.70f else 1.0f
 
   Surface(
     modifier = modifier
       .fillMaxWidth()
       .testTag("task_card_${task.id}")
       .shadow(
-        elevation = cardElevation,
-        shape = RoundedCornerShape(16.dp),
-        ambientColor = Color(0x0A000000),
-        spotColor = Color(0x08000000)
+        elevation = 0.5.dp,
+        shape = RoundedCornerShape(14.dp),
+        ambientColor = Color(0x06000000),
+        spotColor = Color(0x04000000)
       )
-      .animateContentSize(animationSpec = tween(durationMillis = 200)),
-    shape = RoundedCornerShape(16.dp),
-    color = BrandCard.copy(alpha = cardAlpha),
-    border = BorderStroke(1.dp, BrandBorder)
+      .animateContentSize(animationSpec = tween(durationMillis = 180)),
+    shape = RoundedCornerShape(14.dp),
+    color = Color.White.copy(alpha = cardAlpha),
+    border = BorderStroke(0.75.dp, LinearBorderHairline)
   ) {
     Column(
       modifier = Modifier
         .fillMaxWidth()
         .clickable { onToggleExpand() }
-        .padding(16.dp)
+        .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top
       ) {
-        // Left side: Checkbox + Content
+        // Left side: Linear Status Ring + Content
         Row(
           modifier = Modifier.weight(1f),
-          horizontalArrangement = Arrangement.spacedBy(14.dp),
+          horizontalArrangement = Arrangement.spacedBy(12.dp),
           verticalAlignment = Alignment.Top
         ) {
-          // Architectural Checkbox with tactile spring bounce & 36dp touch target
-          val checkboxScale by animateFloatAsState(
-            targetValue = if (isDone) 1.15f else 1.0f,
-            animationSpec = spring(
-              dampingRatio = Spring.DampingRatioMediumBouncy,
-              stiffness = Spring.StiffnessLow
-            ),
-            label = "checkbox_spring"
-          )
-          val checkboxBg by animateColorAsState(
-            targetValue = if (isDone) AppleSystemBlue else Color.Transparent,
-            animationSpec = tween(durationMillis = 150)
-          )
-          val checkboxBorderColor by animateColorAsState(
-            targetValue = if (isDone) AppleSystemBlue else BrandCheckboxBorder,
-            animationSpec = tween(durationMillis = 150)
-          )
-
+          // Status Ring touch target (40dp)
           Box(
             modifier = Modifier
               .testTag("task_checkbox_${task.id}")
-              .size(44.dp)
-              .clip(RoundedCornerShape(10.dp))
+              .size(36.dp)
+              .clip(CircleShape)
               .clickable {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                if (!isDone) {
+                  HapticEngine.success(context, haptic)
+                } else {
+                  HapticEngine.selection(context, haptic)
+                }
                 onToggleComplete()
               },
             contentAlignment = Alignment.Center
           ) {
-            Box(
-              modifier = Modifier
-                .size(24.dp)
-                .graphicsLayer {
-                  scaleX = checkboxScale
-                  scaleY = checkboxScale
-                }
-                .clip(RoundedCornerShape(7.dp))
-                .background(checkboxBg)
-                .then(
-                  if (!isDone) Modifier.background(Color.White, RoundedCornerShape(7.dp))
-                  else Modifier
-                ),
-              contentAlignment = Alignment.Center
-            ) {
-              Surface(
-                modifier = Modifier.fillMaxSize(),
-                shape = RoundedCornerShape(7.dp),
-                color = checkboxBg,
-                border = BorderStroke(2.dp, checkboxBorderColor)
-              ) {
-                if (isDone) {
-                  Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                      imageVector = Icons.Default.Check,
-                      contentDescription = "Completed",
-                      tint = Color.White,
-                      modifier = Modifier.size(15.dp)
-                    )
-                  }
-                }
-              }
-            }
+            LinearStatusRing(
+              status = task.kanbanStatus,
+              isCompleted = isDone,
+              size = 19.dp
+            )
           }
 
           // Center: Title, Metadata & Subtask Progress
           Column(modifier = Modifier.weight(1f)) {
-            Text(
-              text = task.title,
-              fontSize = 14.sp,
-              fontWeight = FontWeight.SemiBold,
-              color = titleColor,
-              textDecoration = textDecoration,
-              letterSpacing = (-0.01).sp,
-              maxLines = if (isExpanded) Int.MAX_VALUE else 2,
-              overflow = TextOverflow.Ellipsis
-            )
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+              Text(
+                text = task.title,
+                fontSize = 13.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = titleColor,
+                textDecoration = textDecoration,
+                letterSpacing = (-0.01).sp,
+                maxLines = if (isExpanded) Int.MAX_VALUE else 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false)
+              )
+
+              // Linear Priority Signal right beside title
+              LinearPrioritySignal(priority = task.priority)
+            }
 
             // Responsive FlowRow for Tags (wraps cleanly on mobile without clipping)
             FlowRow(
               modifier = Modifier
-                .padding(top = 8.dp)
+                .padding(top = 6.dp)
                 .fillMaxWidth(),
               horizontalArrangement = Arrangement.spacedBy(6.dp),
               verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
               // Category Tag
               Surface(
-                shape = RoundedCornerShape(6.dp),
-                color = BrandTagBg
+                shape = RoundedCornerShape(5.dp),
+                color = BrandTagBg,
+                border = BorderStroke(0.5.dp, LinearBorderHairline)
               ) {
                 Text(
                   text = task.category,
-                  fontSize = 11.sp,
+                  fontSize = 10.5.sp,
                   fontWeight = FontWeight.Medium,
                   color = BrandCharcoal,
-                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                  modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                 )
+              }
+
+              // Academic Course Tag (When present)
+              if (!task.courseName.isNullOrBlank()) {
+                Surface(
+                  shape = RoundedCornerShape(5.dp),
+                  color = Color(0xFF4F46E5).copy(alpha = 0.10f),
+                  border = BorderStroke(0.5.dp, Color(0xFF4F46E5).copy(alpha = 0.35f))
+                ) {
+                  Text(
+                    text = "🎓 ${task.courseName}",
+                    fontSize = 10.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF4F46E5),
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                  )
+                }
               }
 
               // Time badge with clock/calendar icon
@@ -307,29 +389,13 @@ private fun TaskCardContent(
                   imageVector = if (task.isTomorrow) Icons.Outlined.CalendarToday else Icons.Outlined.Schedule,
                   contentDescription = "Time",
                   tint = BrandSecondary,
-                  modifier = Modifier.size(12.dp)
+                  modifier = Modifier.size(11.dp)
                 )
                 Text(
-                  text = if (isDone) "Completed" else task.dueTime,
-                  fontSize = 11.sp,
+                  text = if (isDone) "Done" else task.dueTime,
+                  fontSize = 10.5.sp,
                   color = BrandSecondary
                 )
-              }
-
-              // High Priority Tag
-              if (task.priority == TaskPriority.HIGH && !isDone) {
-                Surface(
-                  shape = RoundedCornerShape(6.dp),
-                  color = BrandTerracottaBg
-                ) {
-                  Text(
-                    text = "● High priority",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = BrandTerracotta,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                  )
-                }
               }
 
               // Urgency Badge (e.g., "Due in 4h")
@@ -337,199 +403,169 @@ private fun TaskCardContent(
                 Surface(
                   shape = RoundedCornerShape(4.dp),
                   color = BrandCanvas,
-                  border = BorderStroke(1.dp, BrandBorderLight)
+                  border = BorderStroke(0.5.dp, LinearBorderHairline)
                 ) {
                   Text(
                     text = task.urgencyBadge,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Medium,
                     color = BrandSecondary,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp)
                   )
                 }
               }
 
-              // Attachment Indicator (e.g., "3 files")
-              if (task.attachmentCount != null && !isDone) {
-                Surface(
-                  shape = RoundedCornerShape(4.dp),
-                  color = Color(0xFFF8F7F4),
-                  border = BorderStroke(1.dp, BrandBorderLight)
-                ) {
-                  Row(
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(3.dp)
-                  ) {
-                    Icon(
-                      imageVector = Icons.Outlined.AttachFile,
-                      contentDescription = "Attachments",
-                      tint = BrandSecondary,
-                      modifier = Modifier.size(11.dp)
-                    )
-                    Text(
-                      text = "${task.attachmentCount} files",
-                      fontSize = 10.sp,
-                      color = BrandSecondary
-                    )
-                  }
-                }
-              }
-
-              // Sub-task Badge (e.g., "1/3 sub-tasks")
-              if (task.actualSubtaskBadge != null && !isDone) {
+              // Sub-task indicator tag
+              if (task.subtaskBadge != null) {
                 Surface(
                   shape = RoundedCornerShape(4.dp),
                   color = BrandCanvas,
-                  border = BorderStroke(1.dp, BrandBorderLight)
+                  border = BorderStroke(0.5.dp, LinearBorderHairline)
                 ) {
                   Text(
-                    text = task.actualSubtaskBadge!!,
+                    text = task.subtaskBadge,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Medium,
                     color = BrandSecondary,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp)
                   )
                 }
               }
             }
 
-            // Micro Sub-task Progress Bar
-            if (task.actualSubtasksTotal > 0 && !isDone) {
-              val completed = task.actualSubtasksCompleted
-              val total = task.actualSubtasksTotal
-              val fraction = (completed.toFloat() / total.toFloat()).coerceIn(0f, 1f)
-
+            // Sub-task Progress Bar
+            if (task.subtasksTotalCount > 0) {
+              val subProgress = task.subtasksCompletedCount.toFloat() / task.subtasksTotalCount.toFloat()
               Row(
-                modifier = Modifier.padding(top = 10.dp),
+                modifier = Modifier
+                  .padding(top = 8.dp)
+                  .fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
               ) {
                 Box(
                   modifier = Modifier
-                    .width(96.dp)
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp))
+                    .weight(1f)
+                    .height(3.5.dp)
+                    .clip(RoundedCornerShape(2.dp))
                     .background(BrandBorderLight)
                 ) {
                   Box(
                     modifier = Modifier
                       .fillMaxHeight()
-                      .fillMaxWidth(fraction)
-                      .clip(RoundedCornerShape(3.dp))
-                      .background(BrandCharcoal)
+                      .fillMaxWidth(subProgress)
+                      .clip(RoundedCornerShape(2.dp))
+                      .background(if (subProgress >= 1f) LinearDoneGreen else BrandCharcoal)
                   )
                 }
-
                 Text(
-                  text = "$completed of $total sub-tasks",
+                  text = "${task.subtasksCompletedCount}/${task.subtasksTotalCount}",
                   fontSize = 10.sp,
-                  fontWeight = FontWeight.Medium,
-                  color = BrandSecondary
+                  color = BrandSecondary,
+                  fontWeight = FontWeight.Medium
                 )
               }
             }
           }
         }
-
-        Spacer(modifier = Modifier.width(6.dp))
-
-        // Right side: Delete Button & Priority Dot
-        Row(
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-          // Explicit Delete Button
-          if (onDeleteClick != null) {
-            IconButton(
-              onClick = onDeleteClick,
-              modifier = Modifier
-                .testTag("delete_task_${task.id}")
-                .size(28.dp)
-            ) {
-              Icon(
-                imageVector = Icons.Outlined.DeleteOutline,
-                contentDescription = "Delete task",
-                tint = BrandSecondary.copy(alpha = 0.45f),
-                modifier = Modifier.size(16.dp)
-              )
-            }
-          }
-
-          val dotColor = when {
-            isDone -> Color.Transparent
-            task.priority == TaskPriority.HIGH -> BrandTerracotta
-            task.priority == TaskPriority.MED -> BrandDotNeutral
-            else -> BrandBorder
-          }
-
-          if (!isDone) {
-            Box(
-              modifier = Modifier
-                .padding(end = 2.dp)
-                .size(8.dp)
-                .background(dotColor, CircleShape)
-            )
-          }
-        }
       }
 
-      // Expandable section for full description or actions if user taps
+      // Expandable Subtask checklist & details
       AnimatedVisibility(
         visible = isExpanded,
-        enter = fadeIn() + expandVertically(),
-        exit = fadeOut() + shrinkVertically()
+        enter = expandVertically(animationSpec = tween(200)) + fadeIn(animationSpec = tween(200)),
+        exit = shrinkVertically(animationSpec = tween(180)) + fadeOut(animationSpec = tween(150))
       ) {
         Column(
           modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 12.dp)
+            .padding(top = 10.dp)
         ) {
           if (task.description.isNotBlank()) {
             Text(
               text = task.description,
               fontSize = 12.sp,
               color = BrandSecondary,
-              lineHeight = 16.sp
+              lineHeight = 16.sp,
+              modifier = Modifier.padding(start = 48.dp, bottom = 8.dp)
             )
-            Spacer(modifier = Modifier.height(10.dp))
           }
 
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            if (onDeleteClick != null) {
-              OutlinedButton(
-                onClick = onDeleteClick,
-                colors = ButtonDefaults.outlinedButtonColors(
-                  contentColor = BrandTerracotta
-                ),
-                border = BorderStroke(1.dp, BrandTerracotta.copy(alpha = 0.4f)),
-                shape = RoundedCornerShape(8.dp)
-              ) {
-                Text(
-                  text = "Delete",
-                  fontSize = 11.sp,
-                  fontWeight = FontWeight.Medium
-                )
+          if (task.subtasks.isNotEmpty()) {
+            Column(
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 48.dp),
+              verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+              task.subtasks.forEach { sub ->
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  verticalAlignment = Alignment.CenterVertically,
+                  horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                  Box(
+                    modifier = Modifier
+                      .size(14.dp)
+                      .clip(RoundedCornerShape(4.dp))
+                      .background(if (sub.isCompleted) LinearDoneGreen else Color.Transparent)
+                      .border(1.dp, if (sub.isCompleted) LinearDoneGreen else LinearBacklogGray, RoundedCornerShape(4.dp)),
+                    contentAlignment = Alignment.Center
+                  ) {
+                    if (sub.isCompleted) {
+                      Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(10.dp)
+                      )
+                    }
+                  }
+                  Text(
+                    text = sub.title,
+                    fontSize = 12.sp,
+                    color = if (sub.isCompleted) BrandSecondary.copy(alpha = 0.6f) else BrandCharcoal,
+                    textDecoration = if (sub.isCompleted) TextDecoration.LineThrough else TextDecoration.None
+                  )
+                }
               }
             }
+          }
 
-            Button(
+          // Action row inside expanded card
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(top = 10.dp, start = 48.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            OutlinedButton(
               onClick = onClick,
-              colors = ButtonDefaults.buttonColors(
-                containerColor = BrandCharcoal,
-                contentColor = Color.White
-              ),
-              shape = RoundedCornerShape(8.dp)
+              modifier = Modifier.height(30.dp),
+              shape = RoundedCornerShape(8.dp),
+              border = BorderStroke(0.75.dp, LinearBorderHairline)
             ) {
               Text(
-                text = "Open Details",
+                text = "View Details",
                 fontSize = 11.sp,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                color = BrandCharcoal
               )
+            }
+
+            if (onDeleteClick != null) {
+              IconButton(
+                onClick = onDeleteClick,
+                modifier = Modifier.size(28.dp)
+              ) {
+                Icon(
+                  imageVector = Icons.Outlined.DeleteOutline,
+                  contentDescription = "Delete",
+                  tint = LinearUrgentRed,
+                  modifier = Modifier.size(16.dp)
+                )
+              }
             }
           }
         }

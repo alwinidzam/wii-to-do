@@ -435,6 +435,17 @@ class ToDoRepository private constructor(
   private val _showLevelUpModal = MutableStateFlow(false)
   val showLevelUpModal: StateFlow<Boolean> = _showLevelUpModal.asStateFlow()
 
+  private val _academicCourses = MutableStateFlow<List<com.example.data.model.AcademicCourse>>(
+    com.example.data.model.AcademicCourseDefaults.PRESET_COURSES
+  )
+  val academicCourses: StateFlow<List<com.example.data.model.AcademicCourse>> = _academicCourses.asStateFlow()
+
+  fun addAcademicCourse(course: com.example.data.model.AcademicCourse) {
+    if (_academicCourses.value.none { it.name.equals(course.name, ignoreCase = true) }) {
+      _academicCourses.value = _academicCourses.value + course
+    }
+  }
+
   fun dismissCelebration() {
     _lastCompletedTaskCelebration.value = null
   }

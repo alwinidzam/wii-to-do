@@ -2,7 +2,6 @@ package com.example.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -48,7 +47,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -59,6 +58,7 @@ import com.example.ui.theme.BrandBorder
 import com.example.ui.theme.BrandCharcoal
 import com.example.ui.theme.BrandSecondary
 import com.example.ui.theme.BrandTerracotta
+import com.example.ui.theme.HapticEngine
 
 enum class NavigationTab(
   val idLabel: String,
@@ -76,11 +76,11 @@ enum class NavigationTab(
 
 /**
  * Super High-End Floating Navigation Dock & FAB:
- * - Tactile spring-based press feedback
- * - Haptic responses on tap
- * - Freestanding Frosted Pill Navbar with subtle glassmorphic alpha
- * - Smooth animated active pill indicator
- * - Ultra-crisp typography & geometric precision
+ * - Mathematically concentric corner radii: Outer (28dp) - Padding (6dp) = Inner (22dp)
+ * - Safe horizontal end cushions preventing active pill from ever clipping or clashing with outer capsule
+ * - Zero letter truncation on "Profil" or "Beranda"
+ * - Balanced 54dp FAB aligned with 56dp dock
+ * - Tactile Apple Taptic Engine feedback on all interactions
  */
 @Composable
 fun BottomDockNavigation(
@@ -90,6 +90,7 @@ fun BottomDockNavigation(
   modifier: Modifier = Modifier,
   currentLanguage: AppLanguage = AppLanguage.ID
 ) {
+  val context = LocalContext.current
   val haptic = LocalHapticFeedback.current
   val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
@@ -104,34 +105,34 @@ fun BottomDockNavigation(
   Box(
     modifier = modifier
       .fillMaxWidth()
-      .padding(start = 16.dp, end = 16.dp, bottom = 20.dp + bottomInset),
+      .padding(start = 16.dp, end = 16.dp, bottom = 16.dp + bottomInset),
     contentAlignment = Alignment.Center
   ) {
     Row(
       modifier = Modifier.fillMaxWidth(),
-      horizontalArrangement = Arrangement.spacedBy(12.dp),
+      horizontalArrangement = Arrangement.spacedBy(10.dp),
       verticalAlignment = Alignment.CenterVertically
     ) {
-      // 1. Freestanding Frosted Pill Navbar (60.dp height, expanded weight 1f)
+      // 1. Freestanding Frosted Pill Navbar (56dp height, perfectly concentric 28dp radius)
       Surface(
         modifier = Modifier
           .weight(1f)
-          .height(60.dp)
+          .height(56.dp)
           .shadow(
-            elevation = 16.dp,
-            shape = RoundedCornerShape(30.dp),
-            ambientColor = Color(0x18000000),
-            spotColor = Color(0x22000000)
+            elevation = 12.dp,
+            shape = RoundedCornerShape(28.dp),
+            ambientColor = Color(0x14000000),
+            spotColor = Color(0x18000000)
           ),
-        shape = RoundedCornerShape(30.dp),
-        color = Color.White.copy(alpha = 0.96f),
-        border = BorderStroke(1.dp, BrandBorder)
+        shape = RoundedCornerShape(28.dp),
+        color = Color.White.copy(alpha = 0.97f),
+        border = BorderStroke(0.75.dp, LinearBorderHairline)
       ) {
         Row(
           modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp),
-          horizontalArrangement = Arrangement.SpaceAround,
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+          horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
           NavigationTab.values().forEach { tab ->
@@ -145,7 +146,7 @@ fun BottomDockNavigation(
             )
 
             if (isSelected) {
-              // Active Tab: Charcoal Pill with 18dp Icon + Label
+              // Active Tab: Concentric 22dp pill (28dp outer - 6dp margin = 22dp inner)
               Surface(
                 modifier = Modifier
                   .testTag("nav_tab_${tab.name.lowercase()}")
@@ -159,15 +160,15 @@ fun BottomDockNavigation(
                     interactionSource = tabInteractionSource,
                     indication = null
                   ) {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    HapticEngine.selection(context, haptic)
                     onTabSelected(tab)
                   },
                 shape = RoundedCornerShape(22.dp),
                 color = BrandCharcoal,
-                shadowElevation = 2.dp
+                shadowElevation = 1.dp
               ) {
                 Row(
-                  modifier = Modifier.padding(horizontal = 14.dp),
+                  modifier = Modifier.padding(horizontal = 12.dp),
                   verticalAlignment = Alignment.CenterVertically,
                   horizontalArrangement = Arrangement.Center
                 ) {
@@ -175,12 +176,12 @@ fun BottomDockNavigation(
                     imageVector = tab.activeIcon,
                     contentDescription = tab.getLabel(currentLanguage),
                     tint = Color.White,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(17.dp)
                   )
-                  Spacer(modifier = Modifier.width(6.dp))
+                  Spacer(modifier = Modifier.width(5.dp))
                   Text(
                     text = tab.getLabel(currentLanguage),
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White,
                     letterSpacing = (-0.01).sp
@@ -188,7 +189,7 @@ fun BottomDockNavigation(
                 }
               }
             } else {
-              // Inactive Tab: 44dp Circular Icon Button with 18dp Icon
+              // Inactive Tab: Compact 40dp Circular Icon Button
               Box(
                 modifier = Modifier
                   .testTag("nav_tab_${tab.name.lowercase()}")
@@ -196,13 +197,13 @@ fun BottomDockNavigation(
                     scaleX = tabScale
                     scaleY = tabScale
                   }
-                  .size(44.dp)
+                  .size(40.dp)
                   .clip(CircleShape)
                   .clickable(
                     interactionSource = tabInteractionSource,
                     indication = null
                   ) {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    HapticEngine.selection(context, haptic)
                     onTabSelected(tab)
                   },
                 contentAlignment = Alignment.Center
@@ -230,36 +231,37 @@ fun BottomDockNavigation(
         }
       }
 
-      // 2. Primary Action Floating Add Button (Matching 60.dp Size, Compact 12.dp Gap)
+      // 2. Primary Action Floating Add Button (Sleek 54dp, Concentric Circular Harmony)
       Surface(
         modifier = Modifier
           .testTag("add_task_fab")
-          .size(60.dp)
+          .size(54.dp)
           .graphicsLayer {
             scaleX = fabScale
             scaleY = fabScale
           }
           .shadow(
-            elevation = 16.dp,
+            elevation = 12.dp,
             shape = CircleShape,
-            ambientColor = Color(0x38000000),
-            spotColor = Color(0x551F1F1F)
+            ambientColor = Color(0x18000000),
+            spotColor = Color(0x22000000)
           )
           .clip(CircleShape)
           .clickable(
             interactionSource = fabInteractionSource,
             indication = null
           ) {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            HapticEngine.impactMedium(context, haptic)
             onAddClick()
           },
         shape = CircleShape,
-        color = BrandCharcoal
+        color = BrandCharcoal,
+        border = BorderStroke(0.75.dp, LinearBorderHairline)
       ) {
         Box(contentAlignment = Alignment.Center) {
           Icon(
             imageVector = Icons.Default.Add,
-            contentDescription = "Add new task",
+            contentDescription = "Add Task",
             tint = Color.White,
             modifier = Modifier.size(24.dp)
           )

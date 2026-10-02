@@ -55,6 +55,11 @@ class ToDoViewModel(
   val lastCompletedCelebration: StateFlow<TaskItem?> = repository.lastCompletedTaskCelebration
   val showLevelUpModal: StateFlow<Boolean> = repository.showLevelUpModal
   val shareCardConfig: StateFlow<ShareCardConfig> = repository.shareCardConfig
+  val academicCourses: StateFlow<List<com.example.data.model.AcademicCourse>> = repository.academicCourses
+
+  fun addAcademicCourse(course: com.example.data.model.AcademicCourse) {
+    repository.addAcademicCourse(course)
+  }
 
   private val _currentDestination = MutableStateFlow<AppDestination>(
     if (repository.isUserLoggedIn()) AppDestination.Home else AppDestination.Onboarding
@@ -256,7 +261,8 @@ class ToDoViewModel(
     project: String,
     priority: TaskPriority,
     dueTime: String,
-    dueDate: String
+    dueDate: String,
+    courseName: String? = null
   ): String {
     return repository.addTask(
       title = title,
@@ -265,7 +271,8 @@ class ToDoViewModel(
       project = project,
       priority = priority,
       dueTime = dueTime,
-      dueDate = dueDate
+      dueDate = dueDate,
+      courseName = courseName
     )
   }
 

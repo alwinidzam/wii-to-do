@@ -1,13 +1,14 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -38,17 +39,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.TaskAlt
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -62,41 +59,47 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.model.MilestoneTierLevel
 import com.example.data.model.TaskItem
 import com.example.data.model.UserProfile
 import com.example.ui.components.DateStripSelector
+import com.example.ui.components.LinearBorderHairline
+import com.example.ui.components.LinearDoneGreen
 import com.example.ui.components.TaskCardItem
 import com.example.ui.components.WiiBrandLogo
 import com.example.ui.components.getTodayIndex
 import com.example.ui.i18n.AppLanguage
-import com.example.ui.i18n.LanguageSwitchPill
 import com.example.ui.i18n.Translations
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
 import com.example.ui.theme.BrandAvatarBg
 import com.example.ui.theme.BrandAvatarBorder
 import com.example.ui.theme.BrandBorder
 import com.example.ui.theme.BrandBorderLight
 import com.example.ui.theme.BrandCanvas
-import com.example.ui.theme.BrandCard
 import com.example.ui.theme.BrandCharcoal
 import com.example.ui.theme.BrandOlive
 import com.example.ui.theme.BrandOliveBg
 import com.example.ui.theme.BrandOliveBorder
 import com.example.ui.theme.BrandSecondary
 import com.example.ui.theme.BrandTerracotta
+import com.example.ui.theme.HapticEngine
+import java.util.Calendar
 
+/**
+ * Super High-End Apple HIG & Linear-Grade Home Screen.
+ * - Zero awkward dead space: ultra-compact 48dp header docked right at status bar
+ * - Micro 2.5dp daily progress track integrated in navigation bar
+ * - Quick search toggle (no permanent 44dp obstruction)
+ * - Week date strip and category filters
+ * - Tasks immediately accessible into thumb reach
+ * - Dual-direction swipe-to-triage gestures on all tasks
+ */
 @Composable
 fun HomeScreen(
   tasks: List<TaskItem>,
@@ -117,9 +120,11 @@ fun HomeScreen(
   currentLanguage: AppLanguage = AppLanguage.ID,
   onLanguageSelected: (AppLanguage) -> Unit = {}
 ) {
+  val context = LocalContext.current
   val haptic = LocalHapticFeedback.current
   val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-  var hasUnreadNotification by remember { mutableStateOf(true) }
+  var hasUnreadNotification by remember { mutableStateOf(false) }
+  var isSearchVisible by remember { mutableStateOf(false) }
 
   // Filter tasks
   val filteredTasks = tasks.filter { task ->
@@ -174,663 +179,546 @@ fun HomeScreen(
   val progressFraction = if (totalTasks > 0) completedCount.toFloat() / totalTasks.toFloat() else 0f
   val progressPercent = (progressFraction * 100).toInt()
 
+  val greeting = remember(currentLanguage) {
+    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+    when {
+      hour < 12 -> strings.greetingMorning
+      hour < 15 -> strings.greetingAfternoon
+      hour < 18 -> strings.greetingEvening
+      else -> strings.greetingNight
+    }
+  }
+
   Column(
     modifier = modifier
       .fillMaxSize()
       .background(BrandCanvas)
   ) {
-    // 1. Fixed App Header (Pinned at top, does not scroll)
+    // 1. Ultra-Compact Apple HIG Navigation Bar (Pinned, Zero Dead Space)
     Surface(
       modifier = Modifier.fillMaxWidth(),
-      color = BrandCanvas
+      color = BrandCanvas,
+      border = BorderStroke(0.75.dp, LinearBorderHairline)
     ) {
-      Row(
-        modifier = Modifier
-          .fillMaxWidth()
-          .padding(
-            start = 20.dp,
-            end = 20.dp,
-            top = if (topInset > 0.dp) topInset else 8.dp,
-            bottom = 4.dp
-          ),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        // Logo & Title
+      Column(modifier = Modifier.fillMaxWidth()) {
         Row(
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-          WiiBrandLogo(size = 32.dp)
-          Column {
-            Text(
-              text = strings.appName,
-              fontSize = 16.sp,
-              fontWeight = FontWeight.Bold,
-              color = BrandCharcoal,
-              letterSpacing = (-0.02).sp,
-              lineHeight = 18.sp
-            )
-            Text(
-              text = strings.workspaceSubtitle,
-              fontSize = 10.sp,
-              fontWeight = FontWeight.Medium,
-              color = BrandSecondary,
-              letterSpacing = 0.5.sp,
-              lineHeight = 12.sp
-            )
-          }
-        }
-
-        // Quick Actions: Notification bell + AP Avatar
-        Row(
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-          // Notification Bell Button
-          Surface(
-            modifier = Modifier
-              .size(36.dp)
-              .clip(CircleShape)
-              .clickable {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                hasUnreadNotification = false
-              },
-            shape = CircleShape,
-            color = Color.White,
-            border = BorderStroke(1.dp, BrandBorder)
-          ) {
-            Box(contentAlignment = Alignment.Center) {
-              Icon(
-                imageVector = Icons.Outlined.Notifications,
-                contentDescription = "Notifications",
-                tint = BrandSecondary,
-                modifier = Modifier.size(16.dp)
-              )
-              if (hasUnreadNotification) {
-                Box(
-                  modifier = Modifier
-                    .size(6.dp)
-                    .align(Alignment.TopEnd)
-                    .padding(top = 4.dp, end = 4.dp)
-                    .background(BrandTerracotta, CircleShape)
-                )
-              }
-            }
-          }
-
-          // User Profile Avatar with Online Status
-          Box(
-            modifier = Modifier
-              .size(36.dp)
-              .clip(CircleShape)
-              .clickable {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                onProfileClick()
-              }
-          ) {
-            Surface(
-              modifier = Modifier.fillMaxSize(),
-              shape = CircleShape,
-              color = BrandAvatarBg,
-              border = BorderStroke(1.dp, BrandAvatarBorder)
-            ) {
-              Box(contentAlignment = Alignment.Center) {
-                Text(
-                  text = avatarInitials,
-                  fontSize = 12.sp,
-                  fontWeight = FontWeight.SemiBold,
-                  color = BrandCharcoal
-                )
-              }
-            }
-            // Online status indicator dot
-            Box(
-              modifier = Modifier
-                .size(10.dp)
-                .align(Alignment.BottomEnd)
-                .background(BrandOlive, CircleShape)
-                .border(BorderStroke(2.dp, Color.White), CircleShape)
-            )
-          }
-        }
-      }
-    }
-
-    // Scrollable Task and Timeline Feed
-    LazyColumn(
-      modifier = Modifier
-        .fillMaxSize()
-        .padding(horizontal = 20.dp),
-      contentPadding = PaddingValues(
-        top = 0.dp,
-        bottom = 140.dp // Ensures navbar and FAB NEVER cover tasks
-      ),
-      verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-      // 2. Date & Greeting Header
-      item {
-      val locale = remember(currentLanguage) {
-        if (currentLanguage == AppLanguage.ID) Locale("id", "ID") else Locale.ENGLISH
-      }
-      val dayHeader = remember(selectedDayIndex, currentLanguage) {
-        val calendar = Calendar.getInstance()
-        val currentDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
-        val daysFromMonday = if (currentDayOfWeek == Calendar.SUNDAY) 6 else currentDayOfWeek - Calendar.MONDAY
-        calendar.add(Calendar.DAY_OF_YEAR, -daysFromMonday + selectedDayIndex)
-        val sdf = SimpleDateFormat("EEEE, MMM d", locale)
-        sdf.format(calendar.time).uppercase()
-      }
-      val greeting = remember(currentLanguage) {
-        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        when {
-          hour < 12 -> strings.greetingMorning
-          hour < 15 -> strings.greetingAfternoon
-          hour < 18 -> strings.greetingEvening
-          else -> strings.greetingNight
-        }
-      }
-
-      Column(
-        modifier = Modifier
-          .fillMaxWidth()
-          .padding(top = 2.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-      ) {
-        Row(
-          modifier = Modifier.fillMaxWidth(),
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+              start = 16.dp,
+              end = 16.dp,
+              top = if (topInset > 0.dp) topInset + 4.dp else 8.dp,
+              bottom = 8.dp
+            ),
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
-          Text(
-            text = dayHeader,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = BrandSecondary,
-            letterSpacing = 0.8.sp
-          )
-
-          // Dynamic tasks today pill
-          Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = BrandOliveBg,
-            border = BorderStroke(1.dp, BrandOliveBorder)
-          ) {
-            Row(
-              modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-              verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-              Box(
-                modifier = Modifier
-                  .size(6.dp)
-                  .background(BrandOlive, CircleShape)
-              )
-              Text(
-                text = "$totalRemaining ${strings.tasksTodayBadge}",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                color = BrandOlive
-              )
-            }
-          }
-        }
-
-        Text(
-          text = "$greeting, $userName",
-          fontSize = 24.sp,
-          fontWeight = FontWeight.Bold,
-          color = BrandCharcoal,
-          letterSpacing = (-0.02).sp
-        )
-      }
-    }
-
-
-
-    // 4. Daily Progress Pulse Card (Super High-End Minimal Metric)
-    if (totalTasks > 0) {
-      item {
-        Surface(
-          modifier = Modifier
-            .fillMaxWidth()
-            .shadow(
-              elevation = 1.dp,
-              shape = RoundedCornerShape(14.dp),
-              ambientColor = Color(0x06000000),
-              spotColor = Color(0x05000000)
-            ),
-          shape = RoundedCornerShape(14.dp),
-          color = Color.White,
-          border = BorderStroke(1.dp, BrandBorder)
-        ) {
-          Column(
-            modifier = Modifier
-              .fillMaxWidth()
-              .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-          ) {
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically
-            ) {
-              Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-              ) {
-                Icon(
-                  imageVector = Icons.Outlined.TaskAlt,
-                  contentDescription = "Daily Progress",
-                  tint = if (progressPercent == 100) BrandOlive else BrandCharcoal,
-                  modifier = Modifier.size(15.dp)
-                )
-                Text(
-                  text = if (progressPercent == 100) "All tasks completed!" else "Daily Completion",
-                  fontSize = 12.sp,
-                  fontWeight = FontWeight.SemiBold,
-                  color = BrandCharcoal
-                )
-              }
-
-              Text(
-                text = "$completedCount of $totalTasks ($progressPercent%)",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                color = if (progressPercent == 100) BrandOlive else BrandSecondary
-              )
-            }
-
-            // Minimalist Progress Track
-            Box(
-              modifier = Modifier
-                .fillMaxWidth()
-                .height(5.dp)
-                .clip(RoundedCornerShape(2.5.dp))
-                .background(BrandBorderLight)
-            ) {
-              Box(
-                modifier = Modifier
-                  .fillMaxHeight()
-                  .fillMaxWidth(progressFraction)
-                  .clip(RoundedCornerShape(2.5.dp))
-                  .background(if (progressPercent == 100) BrandOlive else BrandCharcoal)
-              )
-            }
-          }
-        }
-      }
-    }
-
-    // 4. Micro Search Bar
-    item {
-      Surface(
-        modifier = Modifier
-          .fillMaxWidth()
-          .height(44.dp)
-          .shadow(
-            elevation = 1.dp,
-            shape = RoundedCornerShape(12.dp),
-            ambientColor = Color(0x08000000),
-            spotColor = Color(0x05000000)
-          ),
-        shape = RoundedCornerShape(12.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, BrandBorder)
-      ) {
-        Row(
-          modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 12.dp),
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          Icon(
-            imageVector = Icons.Outlined.Search,
-            contentDescription = "Search",
-            tint = BrandSecondary,
-            modifier = Modifier.size(16.dp)
-          )
-          Spacer(modifier = Modifier.width(8.dp))
-          TextField(
-            value = searchQuery,
-            onValueChange = onSearchQueryChanged,
-            placeholder = {
-              Text(
-                text = strings.searchPlaceholder,
-                fontSize = 12.sp,
-                color = BrandSecondary.copy(alpha = 0.6f)
-              )
-            },
-            colors = TextFieldDefaults.colors(
-              focusedContainerColor = Color.Transparent,
-              unfocusedContainerColor = Color.Transparent,
-              focusedIndicatorColor = Color.Transparent,
-              unfocusedIndicatorColor = Color.Transparent,
-              focusedTextColor = BrandCharcoal,
-              unfocusedTextColor = BrandCharcoal
-            ),
-            singleLine = true,
-            modifier = Modifier.weight(1f)
-          )
-
-          if (searchQuery.isNotEmpty()) {
-            IconButton(
-              onClick = {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                onSearchQueryChanged("")
-              },
-              modifier = Modifier.size(24.dp)
-            ) {
-              Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "Clear",
-                tint = BrandSecondary,
-                modifier = Modifier.size(14.dp)
-              )
-            }
-          } else {
-            // ⌘K Shortcut Chip
-            Surface(
-              shape = RoundedCornerShape(4.dp),
-              color = BrandCanvas,
-              border = BorderStroke(1.dp, BrandBorderLight)
-            ) {
-              Text(
-                text = "⌘K",
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Medium,
-                color = BrandSecondary.copy(alpha = 0.8f),
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-              )
-            }
-          }
-        }
-      }
-    }
-
-    // 5. Interactive Micro-Calendar (Horizontal Week Strip)
-    item {
-      DateStripSelector(
-        selectedIndex = selectedDayIndex,
-        onDaySelected = onDaySelected
-      )
-    }
-
-    // 6. Category Filter Pills with Counter Tags
-    item {
-      Row(
-        modifier = Modifier
-          .fillMaxWidth()
-          .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        categories.forEach { (catId, count, label) ->
-          val isSelected = (catId == selectedCategory)
-          val interactionSource = remember { MutableInteractionSource() }
-          val isPressed by interactionSource.collectIsPressedAsState()
-          val scale by animateFloatAsState(
-            targetValue = if (isPressed) 0.94f else 1.0f,
-            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
-            label = "cat_scale"
-          )
-
-          Surface(
-            modifier = Modifier
-              .testTag("filter_chip_${catId.lowercase()}")
-              .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-              }
-              .clip(RoundedCornerShape(20.dp))
-              .clickable(
-                interactionSource = interactionSource,
-                indication = null
-              ) {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                onCategorySelected(catId)
-              },
-            shape = RoundedCornerShape(20.dp),
-            color = if (isSelected) BrandCharcoal else Color.White,
-            border = if (isSelected) null else BorderStroke(1.dp, BrandBorder),
-            shadowElevation = if (isSelected) 2.dp else 0.dp
-          ) {
-            Row(
-              modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-              verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-              Text(
-                text = label,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                color = if (isSelected) Color.White else BrandSecondary
-              )
-
-              // Counter badge
-              Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = if (isSelected) Color.White.copy(alpha = 0.2f) else BrandCanvas,
-                border = if (isSelected) null else BorderStroke(1.dp, BrandBorderLight)
-              ) {
-                Text(
-                  text = count.toString(),
-                  fontSize = 10.sp,
-                  fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                  color = if (isSelected) Color.White else BrandSecondary,
-                  modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
-                )
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // 7. Section Header with Meta Info
-    item {
-      Row(
-        modifier = Modifier
-          .fillMaxWidth()
-          .padding(top = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        Row(
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-          Box(
-            modifier = Modifier
-              .size(8.dp)
-              .background(BrandCharcoal, CircleShape)
-          )
-          Text(
-            text = strings.todaysTasks,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color = BrandCharcoal,
-            letterSpacing = 0.8.sp
-          )
-        }
-
-        Text(
-          text = "$totalRemaining ${strings.remaining}",
-          fontSize = 12.sp,
-          fontWeight = FontWeight.Medium,
-          color = BrandSecondary
-        )
-      }
-    }
-
-    // 8. Tasks List & High-End Empty States
-    if (activeTasks.isEmpty() && completedTasks.isEmpty()) {
-      item {
-        Surface(
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 24.dp),
-          shape = RoundedCornerShape(16.dp),
-          color = Color.White,
-          border = BorderStroke(1.dp, BrandBorder)
-        ) {
-          Column(
-            modifier = Modifier
-              .fillMaxWidth()
-              .padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-          ) {
-            Box(
-              modifier = Modifier
-                .size(48.dp)
-                .background(BrandCanvas, CircleShape)
-                .border(1.dp, BrandBorder, CircleShape),
-              contentAlignment = Alignment.Center
-            ) {
-              Icon(
-                imageVector = if (searchQuery.isNotBlank()) Icons.Outlined.Search else Icons.Outlined.CheckCircle,
-                contentDescription = null,
-                tint = BrandSecondary,
-                modifier = Modifier.size(24.dp)
-              )
-            }
-
-            val emptyTitle = when {
-              searchQuery.isNotBlank() -> if (currentLanguage == AppLanguage.ID) "Tidak ada tugas yang cocok" else "No matching tasks found"
-              selectedCategory != "All" -> if (currentLanguage == AppLanguage.ID) "Tidak ada tugas di kategori $selectedCategory" else "No tasks in $selectedCategory"
-              tasks.isEmpty() -> if (currentLanguage == AppLanguage.ID) "Belum ada tugas" else "No tasks yet"
-              else -> if (currentLanguage == AppLanguage.ID) "Semua tugas selesai!" else "All clear for today!"
-            }
-
-            val emptySubtitle = when {
-              searchQuery.isNotBlank() -> if (currentLanguage == AppLanguage.ID) "Coba cari dengan kata kunci lain atau hapus pencarian." else "Try searching for a different keyword or clear the search field."
-              selectedCategory != "All" -> if (currentLanguage == AppLanguage.ID) "Ganti kategori atau ketuk tombol + untuk menambahkan tugas." else "Switch categories or tap + to create a task in $selectedCategory."
-              tasks.isEmpty() -> if (currentLanguage == AppLanguage.ID) "Ruang fokus Anda masih bersih. Ketuk tombol + untuk menambahkan tugas pertama Anda." else "Your focus workspace is clean. Tap + below to add your first task."
-              else -> if (currentLanguage == AppLanguage.ID) "Kerja bagus! Anda telah menyelesaikan seluruh komitmen hari ini." else "Great work! You have completed all scheduled commitments."
-            }
-
-            Text(
-              text = emptyTitle,
-              fontSize = 15.sp,
-              fontWeight = FontWeight.SemiBold,
-              color = BrandCharcoal
-            )
-
-            Text(
-              text = emptySubtitle,
-              fontSize = 12.sp,
-              color = BrandSecondary,
-              textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-              lineHeight = 16.sp
-            )
-
-            if (searchQuery.isNotBlank() || selectedCategory != "All") {
-              Spacer(modifier = Modifier.height(4.dp))
-              OutlinedButton(
-                onClick = {
-                  haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                  onSearchQueryChanged("")
-                  onCategorySelected("All")
-                },
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, BrandBorder),
-                colors = ButtonDefaults.outlinedButtonColors(
-                  contentColor = BrandCharcoal
-                )
-              ) {
-                Text(
-                  text = strings.resetFilters,
-                  fontSize = 12.sp,
-                  fontWeight = FontWeight.Medium
-                )
-              }
-            }
-          }
-        }
-      }
-    } else {
-      // Active tasks
-      items(
-        items = activeTasks,
-        key = { it.id }
-      ) { task ->
-        TaskCardItem(
-          task = task,
-          onToggleComplete = {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            onToggleTaskComplete(task.id)
-          },
-          onClick = { onTaskClick(task.id) },
-          onDelete = { onDeleteTask(task.id) }
-        )
-      }
-
-      // Completed tasks
-      if (completedTasks.isNotEmpty()) {
-        item {
+          // Leading: Brand Logo + Compact App & User Context
           Row(
-            modifier = Modifier
-              .fillMaxWidth()
-              .padding(top = 10.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+          ) {
+            WiiBrandLogo(size = 28.dp)
+            Column {
+              Text(
+                text = strings.appName,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = BrandCharcoal,
+                letterSpacing = (-0.02).sp,
+                lineHeight = 17.sp
+              )
+              Text(
+                text = "$greeting, $userName • $totalRemaining ${strings.remaining}",
+                fontSize = 10.5.sp,
+                fontWeight = FontWeight.Medium,
+                color = BrandSecondary,
+                letterSpacing = 0.2.sp,
+                lineHeight = 13.sp
+              )
+            }
+          }
+
+          // Trailing Actions: Search Toggle + Notification + Avatar
+          Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            // Search Toggle Icon Button
+            Surface(
+              modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .clickable {
+                  HapticEngine.selection(context, haptic)
+                  isSearchVisible = !isSearchVisible
+                },
+              shape = CircleShape,
+              color = if (isSearchVisible || searchQuery.isNotBlank()) BrandCharcoal else Color.White,
+              border = BorderStroke(0.75.dp, LinearBorderHairline)
+            ) {
+              Box(contentAlignment = Alignment.Center) {
+                Icon(
+                  imageVector = if (isSearchVisible || searchQuery.isNotBlank()) Icons.Default.Close else Icons.Outlined.Search,
+                  contentDescription = "Search",
+                  tint = if (isSearchVisible || searchQuery.isNotBlank()) Color.White else BrandSecondary,
+                  modifier = Modifier.size(15.dp)
+                )
+              }
+            }
+
+            // Notification Bell Button
+            Surface(
+              modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .clickable {
+                  HapticEngine.selection(context, haptic)
+                  hasUnreadNotification = false
+                },
+              shape = CircleShape,
+              color = Color.White,
+              border = BorderStroke(0.75.dp, LinearBorderHairline)
+            ) {
+              Box(contentAlignment = Alignment.Center) {
+                Icon(
+                  imageVector = Icons.Outlined.Notifications,
+                  contentDescription = "Notifications",
+                  tint = BrandSecondary,
+                  modifier = Modifier.size(15.dp)
+                )
+                if (hasUnreadNotification) {
+                  Box(
+                    modifier = Modifier
+                      .size(5.dp)
+                      .align(Alignment.TopEnd)
+                      .padding(top = 3.dp, end = 3.dp)
+                      .background(BrandTerracotta, CircleShape)
+                  )
+                }
+              }
+            }
+
+            // User Profile Avatar with Online Status
+            Box(
+              modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .clickable {
+                  HapticEngine.selection(context, haptic)
+                  onProfileClick()
+                }
+            ) {
+              Surface(
+                modifier = Modifier.fillMaxSize(),
+                shape = CircleShape,
+                color = BrandAvatarBg,
+                border = BorderStroke(1.dp, BrandAvatarBorder)
+              ) {
+                Box(contentAlignment = Alignment.Center) {
+                  Text(
+                    text = avatarInitials,
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = BrandCharcoal
+                  )
+                }
+              }
+              // Online status dot
+              Box(
+                modifier = Modifier
+                  .size(8.dp)
+                  .align(Alignment.BottomEnd)
+                  .background(BrandOlive, CircleShape)
+                  .border(BorderStroke(1.5.dp, Color.White), CircleShape)
+              )
+            }
+          }
+        }
+
+        // Micro Progress Line (only visible when tasks exist)
+        if (totalTasks > 0) {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .height(2.5.dp)
+              .background(BrandBorderLight)
+          ) {
+            Box(
+              modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth(progressFraction)
+                .background(if (progressPercent == 100) LinearDoneGreen else BrandCharcoal)
+            )
+          }
+        }
+      }
+    }
+
+    // 2. High-Efficiency Content Feed (Immediate Task Access)
+    LazyColumn(
+      modifier = Modifier
+        .fillMaxSize()
+        .padding(horizontal = 16.dp),
+      contentPadding = PaddingValues(
+        top = 10.dp,
+        bottom = 120.dp
+      ),
+      verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+      // Inline Search Bar (Expands smoothly when toggled)
+      if (isSearchVisible || searchQuery.isNotBlank()) {
+        item {
+          AnimatedVisibility(
+            visible = isSearchVisible || searchQuery.isNotBlank(),
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+          ) {
+            Surface(
+              modifier = Modifier
+                .fillMaxWidth()
+                .height(40.dp),
+              shape = RoundedCornerShape(10.dp),
+              color = Color.White,
+              border = BorderStroke(0.75.dp, LinearBorderHairline)
+            ) {
+              Row(
+                modifier = Modifier
+                  .fillMaxSize()
+                  .padding(horizontal = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                Icon(
+                  imageVector = Icons.Outlined.Search,
+                  contentDescription = null,
+                  tint = BrandSecondary,
+                  modifier = Modifier.size(15.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                TextField(
+                  value = searchQuery,
+                  onValueChange = onSearchQueryChanged,
+                  placeholder = {
+                    Text(
+                      text = strings.searchPlaceholder,
+                      fontSize = 12.sp,
+                      color = BrandSecondary.copy(alpha = 0.55f)
+                    )
+                  },
+                  colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedTextColor = BrandCharcoal,
+                    unfocusedTextColor = BrandCharcoal
+                  ),
+                  singleLine = true,
+                  modifier = Modifier.weight(1f)
+                )
+                if (searchQuery.isNotEmpty()) {
+                  IconButton(
+                    onClick = {
+                      HapticEngine.selection(context, haptic)
+                      onSearchQueryChanged("")
+                    },
+                    modifier = Modifier.size(22.dp)
+                  ) {
+                    Icon(
+                      imageVector = Icons.Default.Close,
+                      contentDescription = "Clear",
+                      tint = BrandSecondary,
+                      modifier = Modifier.size(13.dp)
+                    )
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Date Strip Selector (Week Strip)
+      item {
+        DateStripSelector(
+          selectedIndex = selectedDayIndex,
+          onDaySelected = {
+            HapticEngine.selection(context, haptic)
+            onDaySelected(it)
+          }
+        )
+      }
+
+      // Category Filter Chips
+      item {
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+          horizontalArrangement = Arrangement.spacedBy(6.dp),
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          categories.forEach { (catId, count, label) ->
+            val isSelected = (catId == selectedCategory)
+            val interactionSource = remember { MutableInteractionSource() }
+            val isPressed by interactionSource.collectIsPressedAsState()
+            val scale by animateFloatAsState(
+              targetValue = if (isPressed) 0.95f else 1.0f,
+              animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+              label = "cat_chip_scale"
+            )
+
+            Surface(
+              modifier = Modifier
+                .testTag("filter_chip_${catId.lowercase()}")
+                .graphicsLayer {
+                  scaleX = scale
+                  scaleY = scale
+                }
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(
+                  interactionSource = interactionSource,
+                  indication = null
+                ) {
+                  HapticEngine.selection(context, haptic)
+                  onCategorySelected(catId)
+                },
+              shape = RoundedCornerShape(8.dp),
+              color = if (isSelected) BrandCharcoal else Color.White,
+              border = if (isSelected) null else BorderStroke(0.75.dp, LinearBorderHairline)
+            ) {
+              Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+              ) {
+                Text(
+                  text = label,
+                  fontSize = 11.5.sp,
+                  fontWeight = FontWeight.Medium,
+                  color = if (isSelected) Color.White else BrandSecondary
+                )
+
+                // Counter badge
+                Surface(
+                  shape = RoundedCornerShape(6.dp),
+                  color = if (isSelected) Color.White.copy(alpha = 0.22f) else BrandCanvas,
+                  border = if (isSelected) null else BorderStroke(0.5.dp, LinearBorderHairline)
+                ) {
+                  Text(
+                    text = count.toString(),
+                    fontSize = 9.5.sp,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                    color = if (isSelected) Color.White else BrandSecondary,
+                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                  )
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Section Header (Tasks count)
+      item {
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 2.dp, bottom = 2.dp),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
           ) {
             Box(
               modifier = Modifier
                 .size(6.dp)
-                .background(BrandSecondary.copy(alpha = 0.5f), CircleShape)
+                .background(BrandCharcoal, CircleShape)
             )
             Text(
-              text = "${strings.completed} (${completedTasks.size})",
-              fontSize = 11.sp,
-              fontWeight = FontWeight.SemiBold,
-              color = BrandSecondary,
-              letterSpacing = 0.8.sp
+              text = strings.todaysTasks,
+              fontSize = 11.5.sp,
+              fontWeight = FontWeight.Bold,
+              color = BrandCharcoal,
+              letterSpacing = 0.5.sp
             )
           }
-        }
 
+          Text(
+            text = "$totalRemaining ${strings.remaining}",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            color = BrandSecondary
+          )
+        }
+      }
+
+      // Tasks List & Empty States
+      if (activeTasks.isEmpty() && completedTasks.isEmpty()) {
+        item {
+          Surface(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(vertical = 16.dp),
+            shape = RoundedCornerShape(14.dp),
+            color = Color.White,
+            border = BorderStroke(0.75.dp, LinearBorderHairline)
+          ) {
+            Column(
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(28.dp),
+              horizontalAlignment = Alignment.CenterHorizontally,
+              verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+              Box(
+                modifier = Modifier
+                  .size(44.dp)
+                  .background(BrandCanvas, CircleShape)
+                  .border(0.75.dp, LinearBorderHairline, CircleShape),
+                contentAlignment = Alignment.Center
+              ) {
+                Icon(
+                  imageVector = if (searchQuery.isNotBlank()) Icons.Outlined.Search else Icons.Outlined.CheckCircle,
+                  contentDescription = null,
+                  tint = BrandSecondary,
+                  modifier = Modifier.size(20.dp)
+                )
+              }
+
+              val emptyTitle = when {
+                searchQuery.isNotBlank() -> if (currentLanguage == AppLanguage.ID) "Tidak ada tugas yang cocok" else "No matching tasks found"
+                selectedCategory != "All" -> if (currentLanguage == AppLanguage.ID) "Tidak ada tugas di kategori $selectedCategory" else "No tasks in $selectedCategory"
+                tasks.isEmpty() -> if (currentLanguage == AppLanguage.ID) "Belum ada tugas" else "No tasks yet"
+                else -> if (currentLanguage == AppLanguage.ID) "Semua tugas selesai!" else "All clear for today!"
+              }
+
+              val emptySubtitle = when {
+                searchQuery.isNotBlank() -> if (currentLanguage == AppLanguage.ID) "Coba cari dengan kata kunci lain." else "Try searching with a different keyword."
+                selectedCategory != "All" -> if (currentLanguage == AppLanguage.ID) "Ganti kategori atau ketuk tombol + untuk menambahkan tugas." else "Switch categories or tap + to create a task."
+                tasks.isEmpty() -> if (currentLanguage == AppLanguage.ID) "Ruang fokus Anda bersih. Ketuk tombol + untuk menambahkan tugas." else "Your focus workspace is clean. Tap + below to add a task."
+                else -> if (currentLanguage == AppLanguage.ID) "Kerja bagus! Anda telah menyelesaikan seluruh komitmen hari ini." else "Great work! You have completed all scheduled commitments."
+              }
+
+              Text(
+                text = emptyTitle,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = BrandCharcoal
+              )
+
+              Text(
+                text = emptySubtitle,
+                fontSize = 11.5.sp,
+                color = BrandSecondary,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                lineHeight = 15.sp
+              )
+
+              if (searchQuery.isNotBlank() || selectedCategory != "All") {
+                Spacer(modifier = Modifier.height(2.dp))
+                OutlinedButton(
+                  onClick = {
+                    HapticEngine.selection(context, haptic)
+                    onSearchQueryChanged("")
+                    onCategorySelected("All")
+                  },
+                  shape = RoundedCornerShape(8.dp),
+                  border = BorderStroke(0.75.dp, LinearBorderHairline),
+                  colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = BrandCharcoal
+                  )
+                ) {
+                  Text(
+                    text = strings.resetFilters,
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Medium
+                  )
+                }
+              }
+            }
+          }
+        }
+      } else {
+        // Active Tasks
         items(
-          items = completedTasks,
+          items = activeTasks,
           key = { it.id }
         ) { task ->
           TaskCardItem(
             task = task,
             onToggleComplete = {
-              haptic.performHapticFeedback(HapticFeedbackType.LongPress)
               onToggleTaskComplete(task.id)
             },
             onClick = { onTaskClick(task.id) },
             onDelete = { onDeleteTask(task.id) }
           )
         }
-      }
-    }
 
-    // 9. Footer: Dash Divider + "That's everything for today"
-    item {
-      Column(
-        modifier = Modifier
-          .fillMaxWidth()
-          .padding(top = 16.dp, bottom = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-      ) {
-        Box(
+        // Completed Tasks
+        if (completedTasks.isNotEmpty()) {
+          item {
+            Row(
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp, bottom = 2.dp),
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+              Box(
+                modifier = Modifier
+                  .size(5.dp)
+                  .background(BrandSecondary.copy(alpha = 0.5f), CircleShape)
+              )
+              Text(
+                text = "${strings.completed} (${completedTasks.size})",
+                fontSize = 10.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = BrandSecondary,
+                letterSpacing = 0.5.sp
+              )
+            }
+          }
+
+          items(
+            items = completedTasks,
+            key = { it.id }
+          ) { task ->
+            TaskCardItem(
+              task = task,
+              onToggleComplete = {
+                onToggleTaskComplete(task.id)
+              },
+              onClick = { onTaskClick(task.id) },
+              onDelete = { onDeleteTask(task.id) }
+            )
+          }
+        }
+      }
+
+      // Minimalist Footer
+      item {
+        Column(
           modifier = Modifier
-            .size(width = 24.dp, height = 2.5.dp)
-            .background(BrandBorder, CircleShape)
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-          text = strings.footerDone,
-          fontSize = 12.sp,
-          color = BrandSecondary.copy(alpha = 0.8f)
-        )
+            .fillMaxWidth()
+            .padding(top = 12.dp, bottom = 6.dp),
+          horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+          Box(
+            modifier = Modifier
+              .size(width = 20.dp, height = 2.dp)
+              .background(LinearBorderHairline, CircleShape)
+          )
+          Spacer(modifier = Modifier.height(4.dp))
+          Text(
+            text = strings.footerDone,
+            fontSize = 11.sp,
+            color = BrandSecondary.copy(alpha = 0.75f)
+          )
+        }
       }
     }
   }
 }
-}
-
-

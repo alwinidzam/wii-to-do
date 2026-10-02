@@ -5,10 +5,15 @@ import android.content.Intent
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -56,13 +61,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.AcademicCourse
+import com.example.data.model.AcademicCourseDefaults
 import com.example.data.model.TaskPriority
+import com.example.ui.components.CourseSelectionStrip
+import com.example.ui.components.FluidDeadlineComposer
 import com.example.ui.theme.BrandBorder
 import com.example.ui.theme.BrandBorderLight
 import com.example.ui.theme.BrandCanvas
@@ -76,6 +85,7 @@ import com.example.ui.theme.BrandSecondary
 import com.example.ui.theme.BrandTagBg
 import com.example.ui.theme.BrandTerracotta
 import com.example.ui.theme.BrandTerracottaBg
+import com.example.ui.theme.HapticEngine
 
 @Composable
 fun CreateTaskScreen(
@@ -88,10 +98,14 @@ fun CreateTaskScreen(
     priority: TaskPriority,
     dueTime: String,
     dueDate: String,
-    withAiBreakdown: Boolean
+    withAiBreakdown: Boolean,
+    courseName: String?
   ) -> Unit,
-  modifier: Modifier = Modifier
+  modifier: Modifier = Modifier,
+  courses: List<AcademicCourse> = AcademicCourseDefaults.PRESET_COURSES,
+  onAddNewCourse: (AcademicCourse) -> Unit = {}
 ) {
+  val context = LocalContext.current
   val haptic = LocalHapticFeedback.current
   val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
   val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -102,8 +116,15 @@ fun CreateTaskScreen(
   var selectedCategory by remember { mutableStateOf("Work") }
   var selectedProject by remember { mutableStateOf("Design System Migration") }
   var selectedPriority by remember { mutableStateOf(TaskPriority.HIGH) }
-  var selectedDate by remember { mutableStateOf("Today") }
-  var selectedTime by remember { mutableStateOf("10:30 AM") }
+
+  // Academic Course state
+  var selectedCourseName by remember { mutableStateOf<String?>("Sistem Operasi") }
+
+  // Deadline state
+  var selectedDateLabel by remember { mutableStateOf("Hari Ini") }
+  var selectedFormattedDate by remember { mutableStateOf("Today") }
+  var isTomorrow by remember { mutableStateOf(false) }
+  var selectedTimeStr by remember { mutableStateOf("23:59") }
 
   val speechRecognizerLauncher = rememberLauncherForActivityResult(
     contract = ActivityResultContracts.StartActivityForResult()
@@ -112,7 +133,7 @@ fun CreateTaskScreen(
       val spokenText = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
       if (!spokenText.isNullOrBlank()) {
         title = if (title.isBlank()) spokenText else "$title $spokenText"
-        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        HapticEngine.selection(context, haptic)
       }
     }
   }
@@ -131,6 +152,8 @@ fun CreateTaskScreen(
       // Speech recognition not available
     }
   }
+
+  val isCollege = selectedCategory.equals("College", ignoreCase = true)
 
   LazyColumn(
     modifier = modifier
@@ -155,7 +178,7 @@ fun CreateTaskScreen(
             .size(40.dp)
             .clip(RoundedCornerShape(10.dp))
             .clickable {
-              haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+              HapticEngine.selection(context, haptic)
               onClose()
             },
           shape = RoundedCornerShape(10.dp),
@@ -192,7 +215,7 @@ fun CreateTaskScreen(
             .size(40.dp)
             .clip(RoundedCornerShape(10.dp))
             .clickable {
-              haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+              HapticEngine.selection(context, haptic)
               startVoiceInput()
             },
           shape = RoundedCornerShape(10.dp),
@@ -233,7 +256,7 @@ fun CreateTaskScreen(
             onValueChange = { title = it },
             placeholder = {
               Text(
-                text = "e.g., Draft dark mode contrast matrix",
+                text = if (isCollege) "e.g., Praktikum Sistem Operasi Modul 3" else "e.g., Draft dark mode contrast matrix",
                 fontSize = 14.sp,
                 color = BrandSecondary.copy(alpha = 0.6f)
               )
@@ -258,11 +281,11 @@ fun CreateTaskScreen(
                 .clip(RoundedCornerShape(8.dp))
                 .clickable {
                   autoBreakdownWithAi = !autoBreakdownWithAi
-                  haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                  HapticEngine.selection(context, haptic)
                 },
               shape = RoundedCornerShape(8.dp),
               color = if (autoBreakdownWithAi) BrandOlive.copy(alpha = 0.12f) else BrandPillBg,
-              border = androidx.compose.foundation.BorderStroke(
+              border = BorderStroke(
                 1.dp,
                 if (autoBreakdownWithAi) BrandOlive.copy(alpha = 0.4f) else BrandBorderLight
               )
@@ -335,7 +358,7 @@ fun CreateTaskScreen(
       }
     }
 
-    // 4. Category / Scope Selector
+    // 4. Category Scope Selector
     item {
       Column {
         Text(
@@ -357,7 +380,7 @@ fun CreateTaskScreen(
                 .weight(1f)
                 .clip(RoundedCornerShape(10.dp))
                 .clickable {
-                  haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                  HapticEngine.selection(context, haptic)
                   selectedCategory = cat
                   selectedProject = when (cat) {
                     "College" -> "Database Design Final"
@@ -374,14 +397,32 @@ fun CreateTaskScreen(
                 contentAlignment = Alignment.Center
               ) {
                 Text(
-                  text = cat,
-                  fontSize = 13.sp,
+                  text = if (cat == "College") "🎓 $cat" else cat,
+                  fontSize = 12.5.sp,
                   fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                   color = if (isSelected) Color.White else BrandSecondary
                 )
               }
             }
           }
+        }
+      }
+    }
+
+    // Dynamic Course Selection (When Category is College)
+    if (isCollege) {
+      item {
+        AnimatedVisibility(
+          visible = isCollege,
+          enter = expandVertically() + fadeIn(),
+          exit = shrinkVertically() + fadeOut()
+        ) {
+          CourseSelectionStrip(
+            courses = courses,
+            selectedCourseName = selectedCourseName,
+            onSelectCourse = { selectedCourseName = it },
+            onAddNewCourse = onAddNewCourse
+          )
         }
       }
     }
@@ -414,7 +455,7 @@ fun CreateTaskScreen(
               modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
                 .clickable {
-                  haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                  HapticEngine.selection(context, haptic)
                   selectedProject = proj
                 },
               shape = RoundedCornerShape(8.dp),
@@ -456,7 +497,7 @@ fun CreateTaskScreen(
                 .weight(1f)
                 .clip(RoundedCornerShape(8.dp))
                 .clickable {
-                  haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                  HapticEngine.selection(context, haptic)
                   selectedPriority = p
                 },
               shape = RoundedCornerShape(8.dp),
@@ -489,36 +530,20 @@ fun CreateTaskScreen(
       }
     }
 
-    // 7. Schedule Date & Time
+    // 7. Full Apple HIG & Linear Fluid Deadline & Time Composer
     item {
-      val todayChip = remember { "Today (${java.text.SimpleDateFormat("MMM d", java.util.Locale.ENGLISH).format(java.util.Date())})" }
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-      ) {
-        listOf(todayChip, "Tomorrow", "Next Week").forEach { d ->
-          val isSelected = (d == selectedDate)
-          Surface(
-            modifier = Modifier
-              .clip(RoundedCornerShape(8.dp))
-              .clickable {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                selectedDate = d
-              },
-            shape = RoundedCornerShape(8.dp),
-            color = if (isSelected) BrandPillBg else Color.White,
-            border = BorderStroke(1.dp, if (isSelected) BrandCharcoal else BrandBorder)
-          ) {
-            Text(
-              text = d,
-              fontSize = 11.sp,
-              fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-              color = BrandCharcoal,
-              modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-            )
-          }
+      FluidDeadlineComposer(
+        selectedDateLabel = selectedDateLabel,
+        selectedTimeStr = selectedTimeStr,
+        onDateSelected = { label, formatted, isTom ->
+          selectedDateLabel = label
+          selectedFormattedDate = formatted
+          isTomorrow = isTom
+        },
+        onTimeSelected = { timeStr ->
+          selectedTimeStr = timeStr
         }
-      }
+      )
     }
 
     // 8. Submit Button
@@ -534,16 +559,17 @@ fun CreateTaskScreen(
       Button(
         onClick = {
           if (title.isNotBlank()) {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            HapticEngine.success(context, haptic)
             onTaskCreated(
-              title,
-              description,
+              title.trim(),
+              description.trim(),
               selectedCategory,
               selectedProject,
               selectedPriority,
-              selectedTime,
-              selectedDate,
-              autoBreakdownWithAi
+              selectedTimeStr,
+              "$selectedDateLabel • $selectedTimeStr",
+              autoBreakdownWithAi,
+              if (isCollege) selectedCourseName else null
             )
           }
         },
@@ -551,7 +577,7 @@ fun CreateTaskScreen(
         interactionSource = interactionSource,
         modifier = Modifier
           .fillMaxWidth()
-          .height(52.dp)
+          .height(50.dp)
           .graphicsLayer {
             scaleX = scale
             scaleY = scale
