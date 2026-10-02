@@ -144,6 +144,17 @@ fun HomeScreen(
 
   val strings = remember(currentLanguage) { Translations.get(currentLanguage) }
 
+  val avatarInitials = remember(userProfile?.name, userName) {
+    val nameToUse = userProfile?.name?.ifBlank { userName } ?: userName
+    val words = nameToUse.trim().split("\\s+".toRegex()).filter { it.isNotEmpty() }
+    when {
+      words.size >= 2 -> "${words[0].first().uppercase()}${words[1].first().uppercase()}"
+      words.size == 1 && words[0].length >= 2 -> words[0].take(2).uppercase()
+      words.size == 1 -> words[0].take(1).uppercase()
+      else -> "W"
+    }
+  }
+
   // Category counts
   val countAll = tasks.size
   val countCollege = tasks.count { it.category.equals("College", ignoreCase = true) }
@@ -266,7 +277,7 @@ fun HomeScreen(
             ) {
               Box(contentAlignment = Alignment.Center) {
                 Text(
-                  text = "AP",
+                  text = avatarInitials,
                   fontSize = 12.sp,
                   fontWeight = FontWeight.SemiBold,
                   color = BrandCharcoal

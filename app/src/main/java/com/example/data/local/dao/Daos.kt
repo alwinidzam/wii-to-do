@@ -9,6 +9,7 @@ import com.example.data.local.entity.ProjectEntity
 import com.example.data.local.entity.ScheduleEntity
 import com.example.data.local.entity.TaskEntity
 import com.example.data.local.entity.UserProfileEntity
+import com.example.data.local.entity.UserAccountEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -99,4 +100,22 @@ interface UserProfileDao {
 
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun insertOrUpdateProfile(profile: UserProfileEntity)
+}
+
+@Dao
+interface UserAccountDao {
+  @Query("SELECT * FROM user_accounts WHERE LOWER(email) = LOWER(:email) LIMIT 1")
+  suspend fun getUserByEmail(email: String): UserAccountEntity?
+
+  @Query("SELECT COUNT(*) FROM user_accounts WHERE LOWER(email) = LOWER(:email)")
+  suspend fun emailExists(email: String): Int
+
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun insertUser(user: UserAccountEntity)
+
+  @Query("SELECT COUNT(*) FROM user_accounts")
+  suspend fun getUserCount(): Int
+
+  @Query("SELECT * FROM user_accounts")
+  suspend fun getAllUsers(): List<UserAccountEntity>
 }

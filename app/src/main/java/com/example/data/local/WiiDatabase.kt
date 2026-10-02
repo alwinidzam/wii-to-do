@@ -9,10 +9,12 @@ import com.example.data.local.converters.RoomTypeConverters
 import com.example.data.local.dao.ProjectDao
 import com.example.data.local.dao.ScheduleDao
 import com.example.data.local.dao.TaskDao
+import com.example.data.local.dao.UserAccountDao
 import com.example.data.local.dao.UserProfileDao
 import com.example.data.local.entity.ProjectEntity
 import com.example.data.local.entity.ScheduleEntity
 import com.example.data.local.entity.TaskEntity
+import com.example.data.local.entity.UserAccountEntity
 import com.example.data.local.entity.UserProfileEntity
 
 @Database(
@@ -20,9 +22,10 @@ import com.example.data.local.entity.UserProfileEntity
     TaskEntity::class,
     ProjectEntity::class,
     ScheduleEntity::class,
-    UserProfileEntity::class
+    UserProfileEntity::class,
+    UserAccountEntity::class
   ],
-  version = 1,
+  version = 2,
   exportSchema = false
 )
 @TypeConverters(RoomTypeConverters::class)
@@ -32,6 +35,7 @@ abstract class WiiDatabase : RoomDatabase() {
   abstract fun projectDao(): ProjectDao
   abstract fun scheduleDao(): ScheduleDao
   abstract fun userProfileDao(): UserProfileDao
+  abstract fun userAccountDao(): UserAccountDao
 
   companion object {
     @Volatile

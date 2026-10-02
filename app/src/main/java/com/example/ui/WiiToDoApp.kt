@@ -41,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -123,6 +124,8 @@ fun WiiToDoApp(
     destination is AppDestination.Projects ||
     destination is AppDestination.Profile
 
+  val tabHistory = remember { mutableStateListOf(0) }
+
   val pagerState = rememberPagerState(
     initialPage = when (destination) {
       AppDestination.Home -> 0
@@ -133,7 +136,7 @@ fun WiiToDoApp(
     }
   ) { 4 }
 
-  // Sync pager settling -> update destination in ViewModel
+  // Sync pager settling -> update destination in ViewModel and record tab history
   LaunchedEffect(pagerState) {
     snapshotFlow { pagerState.settledPage }.collect { settledPage ->
       if (isPrimaryTab) {
@@ -146,6 +149,9 @@ fun WiiToDoApp(
         }
         if (destination != targetDest) {
           viewModel.switchToTab(targetDest)
+        }
+        if (tabHistory.lastOrNull() != settledPage) {
+          tabHistory.add(settledPage)
         }
       }
     }
@@ -175,8 +181,37 @@ fun WiiToDoApp(
     else -> NavigationTab.HOME
   }
 
-  BackHandler(enabled = (isPrimaryTab && pagerState.currentPage != 0) || viewModel.canNavigateBack) {
-    if (isPrimaryTab && pagerState.currentPage != 0) {
+  val isModalOrSheetOpen = showAddTaskBottomSheet || subTaskSheetParentId != null || scheduleBookingSlot != null
+
+  BackHandler(
+    enabled = isModalOrSheetOpen ||
+      !isPrimaryTab ||
+      (isPrimaryTab && (tabHistory.size > 1 || pagerState.currentPage != 0))
+  ) {
+    if (showAddTaskBottomSheet) {
+      showAddTaskBottomSheet = false
+      return@BackHandler
+    }
+    if (subTaskSheetParentId != null) {
+      subTaskSheetParentId = null
+      return@BackHandler
+    }
+    if (scheduleBookingSlot != null) {
+      scheduleBookingSlot = null
+      return@BackHandler
+    }
+    if (!isPrimaryTab) {
+      viewModel.navigateBack()
+      return@BackHandler
+    }
+    // In primary tab navigation
+    if (tabHistory.size > 1) {
+      tabHistory.removeAt(tabHistory.size - 1)
+      val prevPage = tabHistory.lastOrNull() ?: 0
+      coroutineScope.launch {
+        pagerState.animateScrollToPage(prevPage)
+      }
+    } else if (pagerState.currentPage != 0) {
       coroutineScope.launch {
         pagerState.animateScrollToPage(0)
       }
@@ -434,22 +469,10 @@ fun WiiToDoApp(
           AppDestination.Login -> {
             SignInScreen(
               onBackClick = { viewModel.navigateBack() },
-              onSignInSuccess = { email, password ->
-                val isDev = email.trim().equals("alwinizam0405@gmail.com", ignoreCase = true) &&
-                  password.trim().equals("justwiu1", ignoreCase = true)
-                if (isDev) {
-                  viewModel.loginAsDeveloper()
-                } else {
-                  val name = email.substringBefore("@")
-                    .replace(".", " ")
-                    .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-                  viewModel.loginAsFreshUser(name, email, "Personal Workspace")
-                }
+              onSignInAttempt = { email, password ->
+                viewModel.authenticate(email, password)
               },
               onSignUpClick = { viewModel.navigateTo(AppDestination.SignUp) },
-              onGoogleSignIn = {
-                viewModel.loginAsFreshUser("Alwi Pratama (Google)", "alwi.student@university.edu", "Informatics Engineering • Year 3")
-              },
               onGuestSignIn = {
                 viewModel.loginAsFreshUser("Guest Scholar", "guest@wiitodo.app", "Offline Focus Workspace")
               }
@@ -459,17 +482,10 @@ fun WiiToDoApp(
           AppDestination.SignUp -> {
             SignUpScreen(
               onBackClick = { viewModel.navigateBack() },
-              onSignUpSuccess = { name, email, program ->
-                val isDev = email.trim().equals("alwinizam0405@gmail.com", ignoreCase = true)
-                if (isDev) {
-                  viewModel.loginAsDeveloper()
-                } else {
-                  viewModel.loginAsFreshUser(name, email, program)
-                }
+              onSignUpAttempt = { name, email, password, confirmPassword, program ->
+                viewModel.register(name, email, password, confirmPassword, program)
               },
-              onGoogleSignIn = {
-                viewModel.loginAsFreshUser("Alwi Pratama (Google)", "alwi.student@university.edu", "Informatics Engineering • Year 3")
-              },
+              onSignInClick = { viewModel.navigateTo(AppDestination.Login) },
               onGuestSignIn = {
                 viewModel.loginAsFreshUser("Guest Scholar", "guest@wiitodo.app", "Offline Focus Workspace")
               }

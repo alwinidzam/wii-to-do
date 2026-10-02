@@ -49,10 +49,25 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.VisualTransformation
+import com.example.data.auth.AuthField
+import com.example.data.auth.AuthResult
+import kotlinx.coroutines.launch
 import com.example.ui.components.WiiBrandLogo
 import com.example.ui.theme.OliveSecondary
 import com.example.ui.theme.OliveSecondaryContainer
@@ -186,15 +201,18 @@ fun OnboardingScreen(
 @Composable
 fun SignInScreen(
   onBackClick: () -> Unit,
-  onSignInSuccess: (email: String, password: String) -> Unit,
+  onSignInAttempt: suspend (email: String, password: String) -> AuthResult,
   onSignUpClick: () -> Unit,
-  onGoogleSignIn: () -> Unit = { onSignInSuccess("alwi.student@university.edu", "") },
-  onGuestSignIn: () -> Unit = { onSignInSuccess("guest@wiitodo.app", "") },
+  onGuestSignIn: () -> Unit = {},
   modifier: Modifier = Modifier
 ) {
   val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
   var email by remember { mutableStateOf("") }
   var password by remember { mutableStateOf("") }
+  var passwordVisible by remember { mutableStateOf(false) }
+  var isLoading by remember { mutableStateOf(false) }
+  var errorMessage by remember { mutableStateOf<String?>(null) }
+  val coroutineScope = rememberCoroutineScope()
 
   Column(
     modifier = modifier
@@ -202,7 +220,7 @@ fun SignInScreen(
       .background(Color(0xFFFAF9F7))
       .padding(horizontal = 24.dp)
   ) {
-    Spacer(modifier = Modifier.height(topInset + 16.dp))
+    Spacer(modifier = Modifier.height(topInset + 12.dp))
 
     Surface(
       modifier = Modifier
@@ -223,28 +241,70 @@ fun SignInScreen(
       }
     }
 
-    Spacer(modifier = Modifier.height(28.dp))
+    Spacer(modifier = Modifier.height(20.dp))
 
     Text(
       text = "Welcome Back",
-      fontSize = 28.sp,
+      fontSize = 26.sp,
       fontWeight = FontWeight.Bold,
-      color = Color(0xFF060607)
+      color = Color(0xFF060607),
+      letterSpacing = (-0.02).sp
     )
 
     Text(
-      text = "Sign in to sync your university schedule and projects.",
+      text = "Sign in to access your wii to do workspace.",
       fontSize = 13.sp,
       color = Color(0xFF747878)
     )
 
-    Spacer(modifier = Modifier.height(28.dp))
+    Spacer(modifier = Modifier.height(20.dp))
+
+    // Animated Error Banner
+    AnimatedVisibility(
+      visible = errorMessage != null,
+      enter = fadeIn() + expandVertically(),
+      exit = fadeOut() + shrinkVertically()
+    ) {
+      errorMessage?.let { error ->
+        Surface(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 14.dp),
+          shape = RoundedCornerShape(10.dp),
+          color = Color(0xFFFDE8E8),
+          border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF8B4B4))
+        ) {
+          Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Icon(
+              imageVector = Icons.Default.ErrorOutline,
+              contentDescription = null,
+              tint = Color(0xFF9B1C1C),
+              modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+              text = error,
+              color = Color(0xFF9B1C1C),
+              fontSize = 12.sp,
+              fontWeight = FontWeight.Medium
+            )
+          }
+        }
+      }
+    }
 
     OutlinedTextField(
       value = email,
-      onValueChange = { email = it },
-      label = { Text("University Email or ID") },
+      onValueChange = {
+        email = it
+        errorMessage = null
+      },
+      label = { Text("Email Address") },
       singleLine = true,
+      keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
       colors = TextFieldDefaults.colors(
         focusedContainerColor = Color(0xFFFFFFFF),
         unfocusedContainerColor = Color(0xFFFFFFFF),
@@ -258,10 +318,23 @@ fun SignInScreen(
 
     OutlinedTextField(
       value = password,
-      onValueChange = { password = it },
+      onValueChange = {
+        password = it
+        errorMessage = null
+      },
       label = { Text("Password") },
-      visualTransformation = PasswordVisualTransformation(),
-      keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+      visualTransformation = if (passwordVisible) VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+      keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+      trailingIcon = {
+        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+          Icon(
+            imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+            contentDescription = if (passwordVisible) "Hide password" else "Show password",
+            tint = Color(0xFF747878),
+            modifier = Modifier.size(20.dp)
+          )
+        }
+      },
       singleLine = true,
       colors = TextFieldDefaults.colors(
         focusedContainerColor = Color(0xFFFFFFFF),
@@ -272,92 +345,64 @@ fun SignInScreen(
       modifier = Modifier.fillMaxWidth()
     )
 
-    Spacer(modifier = Modifier.height(20.dp))
+    Spacer(modifier = Modifier.height(22.dp))
 
     Button(
       onClick = {
-        if (email.isNotBlank()) {
-          onSignInSuccess(email.trim(), password.trim())
+        val cleanEmail = email.trim()
+        val cleanPassword = password.trim()
+        if (cleanEmail.isBlank()) {
+          errorMessage = "Silakan masukkan alamat email Anda."
+          return@Button
+        }
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(cleanEmail).matches()) {
+          errorMessage = "Format email tidak valid (contoh: user@domain.com)."
+          return@Button
+        }
+        if (cleanPassword.isBlank()) {
+          errorMessage = "Silakan masukkan kata sandi akun Anda."
+          return@Button
+        }
+        isLoading = true
+        coroutineScope.launch {
+          val result = onSignInAttempt(cleanEmail, cleanPassword)
+          isLoading = false
+          if (result is AuthResult.Error) {
+            errorMessage = result.message
+          }
         }
       },
-      enabled = email.isNotBlank(),
+      enabled = !isLoading,
       modifier = Modifier
         .fillMaxWidth()
         .height(52.dp),
       shape = RoundedCornerShape(12.dp),
       colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF060607))
     ) {
-      Text(
-        text = "Continue",
-        fontSize = 15.sp,
-        fontWeight = FontWeight.Bold,
-        color = Color.White
-      )
-      Spacer(modifier = Modifier.width(8.dp))
-      Icon(
-        imageVector = Icons.Default.ArrowForward,
-        contentDescription = null,
-        tint = Color.White,
-        modifier = Modifier.size(16.dp)
-      )
-    }
-
-    Spacer(modifier = Modifier.height(14.dp))
-
-    Row(
-      modifier = Modifier.fillMaxWidth(),
-      verticalAlignment = Alignment.CenterVertically
-    ) {
-      Box(
-        modifier = Modifier
-          .weight(1f)
-          .height(1.dp)
-          .background(Color(0xFFE5E5E5))
-      )
-      Text(
-        text = "OR",
-        fontSize = 11.sp,
-        fontWeight = FontWeight.Bold,
-        color = Color(0xFFA0A0A0),
-        modifier = Modifier.padding(horizontal = 12.dp)
-      )
-      Box(
-        modifier = Modifier
-          .weight(1f)
-          .height(1.dp)
-          .background(Color(0xFFE5E5E5))
-      )
-    }
-
-    Spacer(modifier = Modifier.height(14.dp))
-
-    OutlinedButton(
-      onClick = onGoogleSignIn,
-      modifier = Modifier
-        .fillMaxWidth()
-        .height(50.dp),
-      shape = RoundedCornerShape(12.dp),
-      border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD4D4D4)),
-      colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
-    ) {
-      Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(
-          imageVector = Icons.Default.AccountCircle,
-          contentDescription = "Google",
-          tint = Color(0xFF4285F4),
-          modifier = Modifier.size(20.dp)
+      if (isLoading) {
+        CircularProgressIndicator(
+          modifier = Modifier.size(20.dp),
+          color = Color.White,
+          strokeWidth = 2.dp
         )
-        Spacer(modifier = Modifier.width(10.dp))
+      } else {
         Text(
-          text = "Continue with Google",
-          fontSize = 14.sp,
-          fontWeight = FontWeight.SemiBold,
-          color = Color(0xFF1F1F1F)
+          text = "Sign In",
+          fontSize = 15.sp,
+          fontWeight = FontWeight.Bold,
+          color = Color.White
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Icon(
+          imageVector = Icons.Default.ArrowForward,
+          contentDescription = null,
+          tint = Color.White,
+          modifier = Modifier.size(16.dp)
         )
       }
     }
 
-    Spacer(modifier = Modifier.height(8.dp))
+    Spacer(modifier = Modifier.height(14.dp))
 
     OutlinedButton(
       onClick = onGuestSignIn,
@@ -376,10 +421,12 @@ fun SignInScreen(
       )
     }
 
-    Spacer(modifier = Modifier.height(20.dp))
+    Spacer(modifier = Modifier.weight(1f))
 
     Row(
-      modifier = Modifier.fillMaxWidth(),
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(bottom = 24.dp),
       horizontalArrangement = Arrangement.Center
     ) {
       Text(
@@ -401,183 +448,302 @@ fun SignInScreen(
 @Composable
 fun SignUpScreen(
   onBackClick: () -> Unit,
-  onSignUpSuccess: (name: String, email: String, program: String) -> Unit,
-  onGoogleSignIn: () -> Unit = { onSignUpSuccess("Alwi Pratama (Google)", "alwi.student@university.edu", "Informatics Engineering • Year 3") },
-  onGuestSignIn: () -> Unit = { onSignUpSuccess("Guest Scholar", "guest@wiitodo.app", "Offline Focus Workspace") },
+  onSignUpAttempt: suspend (name: String, email: String, password: String, confirmPassword: String, program: String) -> AuthResult,
+  onSignInClick: () -> Unit,
+  onGuestSignIn: () -> Unit = {},
   modifier: Modifier = Modifier
 ) {
   val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
   var name by remember { mutableStateOf("") }
   var email by remember { mutableStateOf("") }
+  var password by remember { mutableStateOf("") }
+  var confirmPassword by remember { mutableStateOf("") }
   var program by remember { mutableStateOf("") }
+  var passwordVisible by remember { mutableStateOf(false) }
+  var confirmPasswordVisible by remember { mutableStateOf(false) }
+  var isLoading by remember { mutableStateOf(false) }
+  var errorMessage by remember { mutableStateOf<String?>(null) }
+  val coroutineScope = rememberCoroutineScope()
 
-  Column(
+  LazyColumn(
     modifier = modifier
       .fillMaxSize()
       .background(Color(0xFFFAF9F7))
       .padding(horizontal = 24.dp)
   ) {
-    Spacer(modifier = Modifier.height(topInset + 16.dp))
+    item {
+      Spacer(modifier = Modifier.height(topInset + 12.dp))
 
-    Surface(
-      modifier = Modifier
-        .size(40.dp)
-        .clip(RoundedCornerShape(10.dp))
-        .clickable { onBackClick() },
-      shape = RoundedCornerShape(10.dp),
-      color = Color(0xFFFFFFFF),
-      border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEFEFEF))
-    ) {
-      Box(contentAlignment = Alignment.Center) {
-        Icon(
-          imageVector = Icons.Default.ArrowBack,
-          contentDescription = "Back",
-          tint = Color(0xFF060607),
-          modifier = Modifier.size(20.dp)
-        )
-      }
-    }
-
-    Spacer(modifier = Modifier.height(28.dp))
-
-    Text(
-      text = "Create Workspace",
-      fontSize = 28.sp,
-      fontWeight = FontWeight.Bold,
-      color = Color(0xFF060607)
-    )
-
-    Text(
-      text = "Join 10,000+ engineers & designers mastering focus.",
-      fontSize = 13.sp,
-      color = Color(0xFF747878)
-    )
-
-    Spacer(modifier = Modifier.height(24.dp))
-
-    OutlinedTextField(
-      value = name,
-      onValueChange = { name = it },
-      label = { Text("Full Name") },
-      singleLine = true,
-      modifier = Modifier.fillMaxWidth()
-    )
-
-    Spacer(modifier = Modifier.height(12.dp))
-
-    OutlinedTextField(
-      value = email,
-      onValueChange = { email = it },
-      label = { Text("University / Work Email") },
-      singleLine = true,
-      modifier = Modifier.fillMaxWidth()
-    )
-
-    Spacer(modifier = Modifier.height(12.dp))
-
-    OutlinedTextField(
-      value = program,
-      onValueChange = { program = it },
-      label = { Text("Program / Role") },
-      singleLine = true,
-      modifier = Modifier.fillMaxWidth()
-    )
-
-    Spacer(modifier = Modifier.height(24.dp))
-
-    Button(
-      onClick = {
-        if (name.isNotBlank() && email.isNotBlank()) {
-          onSignUpSuccess(name.trim(), email.trim(), program.trim())
+      Surface(
+        modifier = Modifier
+          .size(40.dp)
+          .clip(RoundedCornerShape(10.dp))
+          .clickable { onBackClick() },
+        shape = RoundedCornerShape(10.dp),
+        color = Color(0xFFFFFFFF),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEFEFEF))
+      ) {
+        Box(contentAlignment = Alignment.Center) {
+          Icon(
+            imageVector = Icons.Default.ArrowBack,
+            contentDescription = "Back",
+            tint = Color(0xFF060607),
+            modifier = Modifier.size(20.dp)
+          )
         }
-      },
-      enabled = name.isNotBlank() && email.isNotBlank(),
-      modifier = Modifier
-        .fillMaxWidth()
-        .height(52.dp),
-      shape = RoundedCornerShape(12.dp),
-      colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF060607))
-    ) {
-      Text(
-        text = "Start Focus Architecture",
-        fontSize = 15.sp,
-        fontWeight = FontWeight.Bold,
-        color = Color.White
-      )
-    }
-
-    Spacer(modifier = Modifier.height(14.dp))
-
-    Row(
-      modifier = Modifier.fillMaxWidth(),
-      verticalAlignment = Alignment.CenterVertically
-    ) {
-      Box(
-        modifier = Modifier
-          .weight(1f)
-          .height(1.dp)
-          .background(Color(0xFFE5E5E5))
-      )
-      Text(
-        text = "OR",
-        fontSize = 11.sp,
-        fontWeight = FontWeight.Bold,
-        color = Color(0xFFA0A0A0),
-        modifier = Modifier.padding(horizontal = 12.dp)
-      )
-      Box(
-        modifier = Modifier
-          .weight(1f)
-          .height(1.dp)
-          .background(Color(0xFFE5E5E5))
-      )
-    }
-
-    Spacer(modifier = Modifier.height(14.dp))
-
-    OutlinedButton(
-      onClick = onGoogleSignIn,
-      modifier = Modifier
-        .fillMaxWidth()
-        .height(50.dp),
-      shape = RoundedCornerShape(12.dp),
-      border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD4D4D4)),
-      colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
-    ) {
-      Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(
-          imageVector = Icons.Default.AccountCircle,
-          contentDescription = "Google",
-          tint = Color(0xFF4285F4),
-          modifier = Modifier.size(20.dp)
-        )
-        Spacer(modifier = Modifier.width(10.dp))
-        Text(
-          text = "Sign Up with Google",
-          fontSize = 14.sp,
-          fontWeight = FontWeight.SemiBold,
-          color = Color(0xFF1F1F1F)
-        )
       }
-    }
 
-    Spacer(modifier = Modifier.height(8.dp))
+      Spacer(modifier = Modifier.height(20.dp))
 
-    OutlinedButton(
-      onClick = onGuestSignIn,
-      modifier = Modifier
-        .fillMaxWidth()
-        .height(46.dp),
-      shape = RoundedCornerShape(12.dp),
-      border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEBEBEB)),
-      colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent)
-    ) {
       Text(
-        text = "Continue as Guest (Offline Mode)",
+        text = "Create Workspace",
+        fontSize = 26.sp,
+        fontWeight = FontWeight.Bold,
+        color = Color(0xFF060607),
+        letterSpacing = (-0.02).sp
+      )
+
+      Text(
+        text = "Set up your account for a clean focus workspace.",
         fontSize = 13.sp,
-        fontWeight = FontWeight.Medium,
         color = Color(0xFF747878)
       )
+
+      Spacer(modifier = Modifier.height(18.dp))
+
+      // Animated Error Banner
+      AnimatedVisibility(
+        visible = errorMessage != null,
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut() + shrinkVertically()
+      ) {
+        errorMessage?.let { error ->
+          Surface(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(bottom = 14.dp),
+            shape = RoundedCornerShape(10.dp),
+            color = Color(0xFFFDE8E8),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF8B4B4))
+          ) {
+            Row(
+              modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Icon(
+                imageVector = Icons.Default.ErrorOutline,
+                contentDescription = null,
+                tint = Color(0xFF9B1C1C),
+                modifier = Modifier.size(18.dp)
+              )
+              Spacer(modifier = Modifier.width(8.dp))
+              Text(
+                text = error,
+                color = Color(0xFF9B1C1C),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+              )
+            }
+          }
+        }
+      }
+    }
+
+    item {
+      OutlinedTextField(
+        value = name,
+        onValueChange = {
+          name = it
+          errorMessage = null
+        },
+        label = { Text("Full Name") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+        modifier = Modifier.fillMaxWidth()
+      )
+
+      Spacer(modifier = Modifier.height(12.dp))
+
+      OutlinedTextField(
+        value = email,
+        onValueChange = {
+          email = it
+          errorMessage = null
+        },
+        label = { Text("Email Address") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+        modifier = Modifier.fillMaxWidth()
+      )
+
+      Spacer(modifier = Modifier.height(12.dp))
+
+      OutlinedTextField(
+        value = password,
+        onValueChange = {
+          password = it
+          errorMessage = null
+        },
+        label = { Text("Password (min. 6 characters)") },
+        visualTransformation = if (passwordVisible) VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
+        trailingIcon = {
+          IconButton(onClick = { passwordVisible = !passwordVisible }) {
+            Icon(
+              imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+              contentDescription = if (passwordVisible) "Hide password" else "Show password",
+              tint = Color(0xFF747878),
+              modifier = Modifier.size(20.dp)
+            )
+          }
+        },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth()
+      )
+
+      Spacer(modifier = Modifier.height(12.dp))
+
+      OutlinedTextField(
+        value = confirmPassword,
+        onValueChange = {
+          confirmPassword = it
+          errorMessage = null
+        },
+        label = { Text("Confirm Password") },
+        visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
+        trailingIcon = {
+          IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+            Icon(
+              imageVector = if (confirmPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+              contentDescription = if (confirmPasswordVisible) "Hide password" else "Show password",
+              tint = Color(0xFF747878),
+              modifier = Modifier.size(20.dp)
+            )
+          }
+        },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth()
+      )
+
+      Spacer(modifier = Modifier.height(12.dp))
+
+      OutlinedTextField(
+        value = program,
+        onValueChange = {
+          program = it
+          errorMessage = null
+        },
+        label = { Text("Program / Role (Optional)") },
+        placeholder = { Text("e.g. Informatics Engineering, Designer") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        modifier = Modifier.fillMaxWidth()
+      )
+
+      Spacer(modifier = Modifier.height(20.dp))
+
+      Button(
+        onClick = {
+          val cleanName = name.trim()
+          val cleanEmail = email.trim()
+          val cleanPassword = password.trim()
+          val cleanConfirm = confirmPassword.trim()
+          val cleanProgram = program.trim().ifBlank { "Personal Workspace" }
+
+          if (cleanName.isBlank()) {
+            errorMessage = "Silakan masukkan nama lengkap Anda."
+            return@Button
+          }
+          if (cleanEmail.isBlank()) {
+            errorMessage = "Silakan masukkan alamat email."
+            return@Button
+          }
+          if (!android.util.Patterns.EMAIL_ADDRESS.matcher(cleanEmail).matches()) {
+            errorMessage = "Format email tidak valid (contoh: user@domain.com)."
+            return@Button
+          }
+          if (cleanPassword.length < 6) {
+            errorMessage = "Kata sandi minimal 6 karakter."
+            return@Button
+          }
+          if (cleanPassword != cleanConfirm) {
+            errorMessage = "Konfirmasi kata sandi tidak cocok."
+            return@Button
+          }
+
+          isLoading = true
+          coroutineScope.launch {
+            val result = onSignUpAttempt(cleanName, cleanEmail, cleanPassword, cleanConfirm, cleanProgram)
+            isLoading = false
+            if (result is AuthResult.Error) {
+              errorMessage = result.message
+            }
+          }
+        },
+        enabled = !isLoading,
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(52.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF060607))
+      ) {
+        if (isLoading) {
+          CircularProgressIndicator(
+            modifier = Modifier.size(20.dp),
+            color = Color.White,
+            strokeWidth = 2.dp
+          )
+        } else {
+          Text(
+            text = "Create Workspace",
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+          )
+        }
+      }
+
+      Spacer(modifier = Modifier.height(14.dp))
+
+      OutlinedButton(
+        onClick = onGuestSignIn,
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(46.dp),
+        shape = RoundedCornerShape(12.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEBEBEB)),
+        colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent)
+      ) {
+        Text(
+          text = "Continue as Guest (Offline Mode)",
+          fontSize = 13.sp,
+          fontWeight = FontWeight.Medium,
+          color = Color(0xFF747878)
+        )
+      }
+
+      Spacer(modifier = Modifier.height(24.dp))
+
+      Row(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(bottom = 32.dp),
+        horizontalArrangement = Arrangement.Center
+      ) {
+        Text(
+          text = "Already have an account? ",
+          fontSize = 13.sp,
+          color = Color(0xFF747878)
+        )
+        Text(
+          text = "Sign In",
+          fontSize = 13.sp,
+          fontWeight = FontWeight.Bold,
+          color = Color(0xFF060607),
+          modifier = Modifier.clickable { onSignInClick() }
+        )
+      }
     }
   }
 }

@@ -87,6 +87,30 @@ class ToDoViewModel(
     _currentDestination.value = AppDestination.Onboarding
   }
 
+  suspend fun authenticate(email: String, password: String): com.example.data.auth.AuthResult {
+    val result = repository.authenticateUser(email, password)
+    if (result is com.example.data.auth.AuthResult.Success) {
+      _navigationStack.clear()
+      _currentDestination.value = AppDestination.Home
+    }
+    return result
+  }
+
+  suspend fun register(
+    name: String,
+    email: String,
+    password: String,
+    confirmPassword: String,
+    program: String
+  ): com.example.data.auth.AuthResult {
+    val result = repository.registerUser(name, email, password, confirmPassword, program)
+    if (result is com.example.data.auth.AuthResult.Success) {
+      _navigationStack.clear()
+      _currentDestination.value = AppDestination.Home
+    }
+    return result
+  }
+
   private val _currentLanguage = MutableStateFlow<AppLanguage>(
     if (repository.getAppLanguage() == "en") AppLanguage.EN else AppLanguage.ID
   )

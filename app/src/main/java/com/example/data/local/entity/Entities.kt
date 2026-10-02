@@ -236,3 +236,13 @@ fun UserProfile.toEntity(): UserProfileEntity = UserProfileEntity(
   hapticFeedback = hapticFeedback,
   completionSounds = completionSounds
 )
+
+@Entity(tableName = "user_accounts")
+data class UserAccountEntity(
+  @PrimaryKey val email: String, // Normalized lowercase
+  val passwordHash: String,
+  val salt: String,
+  val displayName: String,
+  val programOrWorkspace: String = "Personal Workspace",
+  val createdAt: Long = System.currentTimeMillis()
+)

@@ -41,6 +41,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -91,6 +92,16 @@ fun ProfileScreen(
 ) {
   val haptic = LocalHapticFeedback.current
   val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+
+  val avatarInitials = remember(profile.name) {
+    val words = profile.name.trim().split("\\s+".toRegex()).filter { it.isNotEmpty() }
+    when {
+      words.size >= 2 -> "${words[0].first().uppercase()}${words[1].first().uppercase()}"
+      words.size == 1 && words[0].length >= 2 -> words[0].take(2).uppercase()
+      words.size == 1 -> words[0].take(1).uppercase()
+      else -> "W"
+    }
+  }
 
   Column(
     modifier = modifier
@@ -190,7 +201,7 @@ fun ProfileScreen(
           ) {
             Box(contentAlignment = Alignment.Center) {
               Text(
-                text = "AP",
+                text = avatarInitials,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = BrandCharcoal

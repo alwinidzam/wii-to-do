@@ -22,6 +22,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import com.example.data.auth.AuthField
+import com.example.data.auth.AuthResult
+import com.example.data.local.entity.UserAccountEntity
+import com.example.data.security.PasswordHasher
 import java.util.UUID
 
 class ToDoRepository private constructor(
@@ -91,6 +96,7 @@ class ToDoRepository private constructor(
     val dbInstance = db ?: return
     scope.launch {
       try {
+        ensureDeveloperAccountSeeded(dbInstance)
         if (!isUserLoggedIn()) {
           dbInstance.taskDao().deleteAllTasks()
           dbInstance.scheduleDao().deleteAllSchedules()
@@ -284,6 +290,128 @@ class ToDoRepository private constructor(
         dbInstance.userProfileDao().insertOrUpdateProfile(fresh.toEntity())
       } catch (_: Exception) {}
     }
+  }
+
+  suspend fun ensureDeveloperAccountSeeded(dbInstance: WiiDatabase) {
+    try {
+      val devEmail = "alwinizam0405@gmail.com"
+      val existing = dbInstance.userAccountDao().getUserByEmail(devEmail)
+      if (existing == null) {
+        val devSalt = PasswordHasher.generateSalt()
+        val devHash = PasswordHasher.hashPassword("justwiu1", devSalt)
+        dbInstance.userAccountDao().insertUser(
+          UserAccountEntity(
+            email = devEmail,
+            passwordHash = devHash,
+            salt = devSalt,
+            displayName = "Alwi Pratama",
+            programOrWorkspace = "Informatics Engineering • Year 3"
+          )
+        )
+      }
+    } catch (_: Exception) {}
+  }
+
+  suspend fun authenticateUser(email: String, password: String): AuthResult = withContext(Dispatchers.IO) {
+    val cleanEmail = email.trim().lowercase()
+    val cleanPassword = password.trim()
+
+    if (cleanEmail.isBlank()) {
+      return@withContext AuthResult.Error("Masukkan alamat email.", AuthField.EMAIL)
+    }
+    if (!android.util.Patterns.EMAIL_ADDRESS.matcher(cleanEmail).matches()) {
+      return@withContext AuthResult.Error("Format email tidak valid.", AuthField.EMAIL)
+    }
+    if (cleanPassword.isBlank()) {
+      return@withContext AuthResult.Error("Masukkan kata sandi.", AuthField.PASSWORD)
+    }
+
+    val dbInstance = db ?: applicationContext?.let { WiiDatabase.getDatabase(it) }
+      ?: return@withContext AuthResult.Error("Database belum diinisialisasi.", AuthField.GENERAL)
+
+    ensureDeveloperAccountSeeded(dbInstance)
+
+    val account = dbInstance.userAccountDao().getUserByEmail(cleanEmail)
+      ?: return@withContext AuthResult.Error("Akun tidak ditemukan. Silakan daftar terlebih dahulu.", AuthField.EMAIL)
+
+    val isPasswordValid = PasswordHasher.verifyPassword(cleanPassword, account.salt, account.passwordHash)
+    if (!isPasswordValid) {
+      return@withContext AuthResult.Error("Kata sandi salah. Silakan coba lagi.", AuthField.PASSWORD)
+    }
+
+    val isDev = cleanEmail == "alwinizam0405@gmail.com"
+    if (isDev) {
+      loginAsDeveloper()
+      AuthResult.Success(userProfile.value, isDeveloper = true)
+    } else {
+      loginAsFreshUser(
+        name = account.displayName,
+        email = account.email,
+        program = account.programOrWorkspace
+      )
+      AuthResult.Success(userProfile.value, isDeveloper = false)
+    }
+  }
+
+  suspend fun registerUser(
+    name: String,
+    email: String,
+    password: String,
+    confirmPassword: String,
+    program: String
+  ): AuthResult = withContext(Dispatchers.IO) {
+    val cleanName = name.trim()
+    val cleanEmail = email.trim().lowercase()
+    val cleanPassword = password.trim()
+    val cleanConfirm = confirmPassword.trim()
+    val cleanProgram = program.trim().ifBlank { "Personal Workspace" }
+
+    if (cleanName.isBlank()) {
+      return@withContext AuthResult.Error("Nama lengkap tidak boleh kosong.", AuthField.NAME)
+    }
+    if (cleanEmail.isBlank()) {
+      return@withContext AuthResult.Error("Email tidak boleh kosong.", AuthField.EMAIL)
+    }
+    if (!android.util.Patterns.EMAIL_ADDRESS.matcher(cleanEmail).matches()) {
+      return@withContext AuthResult.Error("Format email tidak valid.", AuthField.EMAIL)
+    }
+    if (cleanPassword.length < 6) {
+      return@withContext AuthResult.Error("Kata sandi minimal 6 karakter.", AuthField.PASSWORD)
+    }
+    if (cleanPassword != cleanConfirm) {
+      return@withContext AuthResult.Error("Konfirmasi kata sandi tidak cocok.", AuthField.CONFIRM_PASSWORD)
+    }
+
+    val dbInstance = db ?: applicationContext?.let { WiiDatabase.getDatabase(it) }
+      ?: return@withContext AuthResult.Error("Database belum diinisialisasi.", AuthField.GENERAL)
+
+    ensureDeveloperAccountSeeded(dbInstance)
+
+    val count = dbInstance.userAccountDao().emailExists(cleanEmail)
+    if (count > 0) {
+      return@withContext AuthResult.Error("Email sudah terdaftar. Silakan login.", AuthField.EMAIL)
+    }
+
+    val salt = PasswordHasher.generateSalt()
+    val hash = PasswordHasher.hashPassword(cleanPassword, salt)
+    val newAccount = UserAccountEntity(
+      email = cleanEmail,
+      passwordHash = hash,
+      salt = salt,
+      displayName = cleanName,
+      programOrWorkspace = cleanProgram
+    )
+
+    dbInstance.userAccountDao().insertUser(newAccount)
+
+    // Fresh login with 0 tasks, 0 XP, Level 1
+    loginAsFreshUser(
+      name = cleanName,
+      email = cleanEmail,
+      program = cleanProgram
+    )
+
+    AuthResult.Success(userProfile.value, isDeveloper = false)
   }
 
   private val _tasks = MutableStateFlow<List<TaskItem>>(emptyList())
