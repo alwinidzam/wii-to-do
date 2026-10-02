@@ -11,7 +11,6 @@ import com.example.data.model.TaskPriority
 import com.example.data.model.UserProfile
 import com.example.data.repository.ToDoRepository
 import com.example.data.model.ShareCardConfig
-import com.example.ui.audio.FocusAudioEngine
 import com.example.ui.components.getTodayIndex
 import com.example.data.ai.GeminiTaskBreakdownService
 import com.example.data.model.SubTask
@@ -93,9 +92,6 @@ class ToDoViewModel(
   private val _searchQuery = MutableStateFlow("")
   val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-  private val _soundscapePlaying = MutableStateFlow(true)
-  val soundscapePlaying: StateFlow<Boolean> = _soundscapePlaying.asStateFlow()
-
   private val _isGeneratingAiSubtasks = MutableStateFlow(false)
   val isGeneratingAiSubtasks: StateFlow<Boolean> = _isGeneratingAiSubtasks.asStateFlow()
 
@@ -118,9 +114,6 @@ class ToDoViewModel(
   }
 
   fun navigateBack() {
-    if (_currentDestination.value is AppDestination.ActiveFocus) {
-      FocusAudioEngine.stopSoundscape()
-    }
     _currentDestination.value = when (_currentDestination.value) {
       is AppDestination.TaskDetail,
       is AppDestination.CreateTask,
@@ -238,22 +231,13 @@ class ToDoViewModel(
     repository.bookScheduleSlot(startTime, endTime, title, category, isDeepWork)
   }
 
-  fun startFocusSession(taskTitle: String, minutes: Int, soundscape: String) {
+  fun startFocusSession(taskTitle: String, minutes: Int, soundscape: String = "") {
     repository.startFocusSession(taskTitle, minutes, soundscape)
-    if (_soundscapePlaying.value) {
-      FocusAudioEngine.startSoundscape()
-    }
     navigateTo(AppDestination.ActiveFocus)
   }
 
   fun toggleFocusTimerRunning() {
     repository.toggleFocusTimerRunning()
-    val isRunning = repository.activeFocusSession.value?.isRunning == true
-    if (isRunning && _soundscapePlaying.value) {
-      FocusAudioEngine.startSoundscape()
-    } else {
-      FocusAudioEngine.stopSoundscape()
-    }
   }
 
   fun addFiveMinutesToFocus() {
@@ -261,7 +245,6 @@ class ToDoViewModel(
   }
 
   fun completeCurrentSprint() {
-    FocusAudioEngine.stopSoundscape()
     repository.completeCurrentSprint()
     navigateTo(AppDestination.FocusSummary)
   }
@@ -272,16 +255,6 @@ class ToDoViewModel(
 
   fun updateProfile(name: String, email: String, program: String) {
     repository.updateUserProfile(name, email, program)
-  }
-
-  fun toggleSoundscape() {
-    val next = !_soundscapePlaying.value
-    _soundscapePlaying.value = next
-    if (next && _currentDestination.value is AppDestination.ActiveFocus) {
-      FocusAudioEngine.startSoundscape()
-    } else {
-      FocusAudioEngine.stopSoundscape()
-    }
   }
 
   fun dismissCelebration() {
@@ -297,14 +270,13 @@ class ToDoViewModel(
   }
 
   fun toggleHapticFeedback() = repository.toggleHapticFeedback()
-  fun toggleCompletionSounds() = repository.toggleCompletionSounds()
   fun toggleCalendarSync() = repository.toggleCalendarSync()
   fun toggleMorningBriefing() = repository.toggleMorningBriefing()
   fun toggleAutoFocusMode() = repository.toggleAutoFocusMode()
 
   override fun onCleared() {
     super.onCleared()
-    FocusAudioEngine.stopSoundscape()
+    timerJob?.cancel()
   }
 
   private fun startTimerTicker() {
@@ -314,7 +286,6 @@ class ToDoViewModel(
         delay(1000)
         val finished = repository.tickFocusSecond()
         if (finished && _currentDestination.value is AppDestination.ActiveFocus) {
-          FocusAudioEngine.stopSoundscape()
           _currentDestination.value = AppDestination.FocusSummary
         }
       }

@@ -77,6 +77,7 @@ import com.example.ui.theme.BrandSecondary
 import com.example.ui.theme.BrandTagBg
 import com.example.ui.theme.BrandTerracotta
 import com.example.ui.theme.BrandTerracottaBg
+import com.example.ui.theme.AppleSystemBlue
 import kotlinx.coroutines.delay
 
 /**
@@ -208,19 +209,19 @@ private fun TaskCardContent(
             label = "checkbox_spring"
           )
           val checkboxBg by animateColorAsState(
-            targetValue = if (isDone) BrandCharcoal else Color.Transparent,
+            targetValue = if (isDone) AppleSystemBlue else Color.Transparent,
             animationSpec = tween(durationMillis = 150)
           )
           val checkboxBorderColor by animateColorAsState(
-            targetValue = if (isDone) BrandCharcoal else BrandCheckboxBorder,
+            targetValue = if (isDone) AppleSystemBlue else BrandCheckboxBorder,
             animationSpec = tween(durationMillis = 150)
           )
 
           Box(
             modifier = Modifier
               .testTag("task_checkbox_${task.id}")
-              .size(36.dp)
-              .clip(RoundedCornerShape(8.dp))
+              .size(44.dp)
+              .clip(RoundedCornerShape(10.dp))
               .clickable {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onToggleComplete()
@@ -229,22 +230,22 @@ private fun TaskCardContent(
           ) {
             Box(
               modifier = Modifier
-                .size(22.dp)
+                .size(24.dp)
                 .graphicsLayer {
                   scaleX = checkboxScale
                   scaleY = checkboxScale
                 }
-                .clip(RoundedCornerShape(6.dp))
+                .clip(RoundedCornerShape(7.dp))
                 .background(checkboxBg)
                 .then(
-                  if (!isDone) Modifier.background(Color.White, RoundedCornerShape(6.dp))
+                  if (!isDone) Modifier.background(Color.White, RoundedCornerShape(7.dp))
                   else Modifier
                 ),
               contentAlignment = Alignment.Center
             ) {
               Surface(
                 modifier = Modifier.fillMaxSize(),
-                shape = RoundedCornerShape(6.dp),
+                shape = RoundedCornerShape(7.dp),
                 color = checkboxBg,
                 border = BorderStroke(2.dp, checkboxBorderColor)
               ) {
@@ -254,7 +255,7 @@ private fun TaskCardContent(
                       imageVector = Icons.Default.Check,
                       contentDescription = "Completed",
                       tint = Color.White,
-                      modifier = Modifier.size(14.dp)
+                      modifier = Modifier.size(15.dp)
                     )
                   }
                 }

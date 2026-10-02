@@ -2,24 +2,48 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// WII To-Do Exact Reference Tokens from Tailwind Config
-val BrandCharcoal = Color(0xFF1F1F1F)
-val BrandSecondary = Color(0xFF75736E)
-val BrandBorder = Color(0xFFEAE8E3)
-val BrandBorderLight = Color(0xFFF0EFEA)
-val BrandCanvas = Color(0xFFFAF9F7)
+// Apple Human Interface Guidelines (HIG) System Palette
+val AppleSystemBlue = Color(0xFF007AFF)
+val AppleSystemGreen = Color(0xFF34C759)
+val AppleSystemIndigo = Color(0xFF5856D6)
+val AppleSystemOrange = Color(0xFFFF9500)
+val AppleSystemPink = Color(0xFFFF2D55)
+val AppleSystemPurple = Color(0xFFAF52DE)
+val AppleSystemRed = Color(0xFFFF3B30)
+val AppleSystemTeal = Color(0xFF5AC8FA)
+val AppleSystemYellow = Color(0xFFFFCC00)
+
+// Apple System Grays
+val AppleSystemGray = Color(0xFF8E8E93)
+val AppleSystemGray2 = Color(0xFFAEAEB2)
+val AppleSystemGray3 = Color(0xFFC7C7CC)
+val AppleSystemGray4 = Color(0xFFD1D1D6)
+val AppleSystemGray5 = Color(0xFFE5E5EA)
+val AppleSystemGray6 = Color(0xFFF2F2F7)
+
+// Apple Semantic Backgrounds
+val AppleGroupedBackground = Color(0xFFF2F2F7) // Standard iOS Inset Grouped Table View Background
+val AppleCardBackground = Color(0xFFFFFFFF)
+val AppleSeparator = Color(0x333C3C43) // 20% opacity separator
+
+// WII To-Do Refined Apple HIG Tokens
+val BrandCharcoal = Color(0xFF1C1C1E)
+val BrandSecondary = Color(0xFF8E8E93)
+val BrandBorder = Color(0xFFE5E5EA)
+val BrandBorderLight = Color(0xFFF2F2F7)
+val BrandCanvas = Color(0xFFF2F2F7)
 val BrandCard = Color(0xFFFFFFFF)
-val BrandTerracotta = Color(0xFFD96B52)
-val BrandTerracottaBg = Color(0xFFFCF2EE)
-val BrandOlive = Color(0xFF5A735B)
-val BrandOliveBg = Color(0xFFF1F5F1)
-val BrandPillBg = Color(0xFFF3F2EE)
-val BrandTagBg = Color(0xFFF2F1ED)
-val BrandCheckboxBorder = Color(0xFFD4D2CB)
-val BrandDotNeutral = Color(0xFFB0ADA6)
-val BrandAvatarBg = Color(0xFFEAE8E2)
-val BrandAvatarBorder = Color(0xFFDDD9D1)
-val BrandOliveBorder = Color(0xFFD8E3D9)
+val BrandTerracotta = Color(0xFFFF3B30)
+val BrandTerracottaBg = Color(0xFFFFEBEA)
+val BrandOlive = Color(0xFF34C759)
+val BrandOliveBg = Color(0xFFEBF9EE)
+val BrandPillBg = Color(0xFFE5E5EA)
+val BrandTagBg = Color(0xFFF2F2F7)
+val BrandCheckboxBorder = Color(0xFFC7C7CC)
+val BrandDotNeutral = Color(0xFF8E8E93)
+val BrandAvatarBg = Color(0xFFE5E5EA)
+val BrandAvatarBorder = Color(0xFFD1D1D6)
+val BrandOliveBorder = Color(0xFFD1F2D6)
 
 // Backward-compatible mappings
 val PrimaryBackground = BrandCanvas

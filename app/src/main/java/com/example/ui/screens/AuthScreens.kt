@@ -107,7 +107,7 @@ fun OnboardingScreen(
       FeatureHighlightCard(
         icon = Icons.Default.Bolt,
         title = "Focus Pomodoro Engine",
-        subtitle = "Custom soundscapes, deep flow tracking, and XP milestones."
+        subtitle = "Distraction-free timer, tactile haptics, and deep flow tracking."
       )
       FeatureHighlightCard(
         icon = Icons.Default.ViewKanban,

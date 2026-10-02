@@ -72,18 +72,19 @@ import com.example.ui.theme.BrandSecondary
 import com.example.ui.theme.BrandTagBg
 import com.example.ui.theme.BrandTerracotta
 import com.example.ui.theme.BrandTerracottaBg
+import com.example.ui.theme.AppleSystemGreen
 
 @Composable
 fun ProfileScreen(
   profile: UserProfile,
   onToggleHaptics: () -> Unit,
-  onToggleSounds: () -> Unit,
   onToggleCalendarSync: () -> Unit,
   onToggleMorningBriefing: () -> Unit,
   onToggleAutoFocus: () -> Unit,
   onViewLevelCelebration: () -> Unit,
   onSignOut: () -> Unit,
   modifier: Modifier = Modifier,
+  onToggleSounds: (() -> Unit)? = null,
   onOpenMilestoneJourney: () -> Unit = onViewLevelCelebration,
   currentLanguage: AppLanguage = AppLanguage.ID,
   onLanguageSelected: (AppLanguage) -> Unit = {}
@@ -343,7 +344,7 @@ fun ProfileScreen(
           Spacer(modifier = Modifier.height(10.dp))
 
           Text(
-            text = "✓ Unlocked: Custom Soundscapes, Architectural Matrix Tags, 1.25x Multiplier",
+            text = "✓ Unlocked: Focus Streaks, Architectural Matrix Tags, 1.25x Multiplier",
             fontSize = 11.sp,
             color = Color.White.copy(alpha = 0.75f)
           )
@@ -453,7 +454,7 @@ fun ProfileScreen(
           SettingToggleRow(
             icon = Icons.Default.Headphones,
             title = "Auto Focus Mode",
-            subtitle = "Activate DND and soundscape when sprint starts",
+            subtitle = "Activate DND when sprint starts",
             checked = profile.autoFocusMode,
             onCheckedChange = {
               haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -486,22 +487,11 @@ fun ProfileScreen(
           SettingToggleRow(
             icon = Icons.Default.Vibration,
             title = "Haptic Tactile Feedback",
-            subtitle = "Subtle vibration on task checkmark",
+            subtitle = "Subtle tactile haptic on task checkbox and actions",
             checked = profile.hapticFeedback,
             onCheckedChange = {
               haptic.performHapticFeedback(HapticFeedbackType.LongPress)
               onToggleHaptics()
-            }
-          )
-          HorizontalDivider(color = BrandBorderLight, thickness = 1.dp)
-          SettingToggleRow(
-            icon = Icons.Default.VolumeUp,
-            title = "Completion Sounds",
-            subtitle = "Warm tone when completing tasks",
-            checked = profile.completionSounds,
-            onCheckedChange = {
-              haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-              onToggleSounds()
             }
           )
           HorizontalDivider(color = BrandBorderLight, thickness = 1.dp)
@@ -647,9 +637,9 @@ fun SettingToggleRow(
       onCheckedChange = onCheckedChange,
       colors = SwitchDefaults.colors(
         checkedThumbColor = Color.White,
-        checkedTrackColor = BrandCharcoal,
-        uncheckedThumbColor = BrandSecondary,
-        uncheckedTrackColor = BrandBorderLight
+        checkedTrackColor = AppleSystemGreen,
+        uncheckedThumbColor = Color.White,
+        uncheckedTrackColor = BrandBorder
       )
     )
   }

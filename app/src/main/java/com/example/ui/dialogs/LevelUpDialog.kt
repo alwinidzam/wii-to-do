@@ -129,9 +129,9 @@ fun LevelUpDialog(
               letterSpacing = 0.8.sp
             )
             listOf(
-              "Ambient Soundscapes (Rain, Brown Noise, Binaural)",
+              "Apple Haptic Engine & Focus Metrics",
               "Architectural Token Matrix Tags (#token/dark-matrix)",
-              "1.25x XP Productivity Multiplier"
+              "1.25x Productivity Multiplier"
             ).forEach { perk ->
               Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(

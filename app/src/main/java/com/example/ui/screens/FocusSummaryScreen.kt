@@ -156,8 +156,8 @@ fun FocusSummaryScreen(
           horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
           MetricBox(
-            title = "Soundscape",
-            value = session?.soundscape ?: "Calm Focus",
+            title = "Focus Mode",
+            value = "Deep Work",
             icon = Icons.Default.Bolt,
             modifier = Modifier.weight(1f)
           )

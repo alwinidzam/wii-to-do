@@ -83,7 +83,6 @@ fun WiiToDoApp(
   val schedule by viewModel.schedule.collectAsState()
   val userProfile by viewModel.userProfile.collectAsState()
   val activeFocus by viewModel.activeFocusSession.collectAsState()
-  val soundscapePlaying by viewModel.soundscapePlaying.collectAsState()
   val shareCardConfig by viewModel.shareCardConfig.collectAsState()
 
   val selectedDayIndex by viewModel.selectedDayIndex.collectAsState()
@@ -224,7 +223,6 @@ fun WiiToDoApp(
             ProfileScreen(
               profile = userProfile,
               onToggleHaptics = { viewModel.toggleHapticFeedback() },
-              onToggleSounds = { viewModel.toggleCompletionSounds() },
               onToggleCalendarSync = { viewModel.toggleCalendarSync() },
               onToggleMorningBriefing = { viewModel.toggleMorningBriefing() },
               onToggleAutoFocus = { viewModel.toggleAutoFocusMode() },
@@ -253,7 +251,7 @@ fun WiiToDoApp(
                 isAiGenerating = isAiGenerating,
                 onStartFocusClick = {
                   val effort = if (currentTask.estimatedEffortMinutes > 0) currentTask.estimatedEffortMinutes else 15
-                  viewModel.startFocusSession(currentTask.title, effort, "Brown Noise Calm")
+                  viewModel.startFocusSession(currentTask.title, effort)
                 },
                 onRescheduleClick = { scheduleBookingSlot = Pair("16:00", "16:30") }
               )
@@ -294,12 +292,10 @@ fun WiiToDoApp(
             val session = activeFocus ?: com.example.data.model.FocusSessionState("Deep Work Focus", "Sprint")
             ActiveFocusScreen(
               session = session,
-              soundscapePlaying = soundscapePlaying,
               onClose = { viewModel.navigateTo(AppDestination.Home) },
               onToggleTimer = { viewModel.toggleFocusTimerRunning() },
               onAddFiveMinutes = { viewModel.addFiveMinutesToFocus() },
-              onCompleteSprint = { viewModel.completeCurrentSprint() },
-              onToggleSoundscape = { viewModel.toggleSoundscape() }
+              onCompleteSprint = { viewModel.completeCurrentSprint() }
             )
           }
 
@@ -309,11 +305,11 @@ fun WiiToDoApp(
               session = session,
               onReturnHome = { viewModel.navigateTo(AppDestination.Home) },
               onTakeBreak = {
-                viewModel.startFocusSession("Break & Stretch", 5, "Campfire Rain")
+                viewModel.startFocusSession("Break & Stretch", 5)
               },
               onContinueSprint = {
                 val nextTitle = session?.taskTitle ?: "Deep Focus Sprint"
-                viewModel.startFocusSession(nextTitle, 15, "Brown Noise Calm")
+                viewModel.startFocusSession(nextTitle, 15)
               },
               onSaveReflection = { energy, note ->
                 viewModel.recordSprintReflection(energy, note)
@@ -417,7 +413,7 @@ fun WiiToDoApp(
             val task = tasks.find { it.id == currentDest.taskId }
             val title = task?.title ?: "Deep Work Sprint"
             val effort = task?.estimatedEffortMinutes ?: 25
-            viewModel.startFocusSession(title, effort, "Brown Noise Calm")
+            viewModel.startFocusSession(title, effort)
           }
         }
       }
@@ -501,68 +497,53 @@ fun WiiToDoApp(
       )
     }
 
-    // Celebration XP Floating Toast
+    // Apple Dynamic Island Capsule Notification
     AnimatedVisibility(
       visible = celebrationTask != null,
       enter = slideInVertically { -it } + fadeIn(),
       exit = slideOutVertically { -it } + fadeOut(),
       modifier = Modifier
         .align(Alignment.TopCenter)
-        .padding(top = 48.dp, start = 20.dp, end = 20.dp)
+        .padding(top = 54.dp, start = 20.dp, end = 20.dp)
     ) {
       Surface(
         modifier = Modifier
-          .fillMaxWidth()
-          .shadow(12.dp, RoundedCornerShape(14.dp)),
-        shape = RoundedCornerShape(14.dp),
-        color = Color(0xFF1F1F1F)
+          .shadow(16.dp, RoundedCornerShape(24.dp), ambientColor = Color(0x18000000), spotColor = Color(0x22000000)),
+        shape = RoundedCornerShape(24.dp),
+        color = Color(0xFF1C1C1E)
       ) {
         Row(
-          modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-          verticalAlignment = Alignment.CenterVertically
+          modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
           Surface(
-            modifier = Modifier.size(32.dp),
+            modifier = Modifier.size(24.dp),
             shape = CircleShape,
-            color = Color(0xFFD5E5C9)
+            color = com.example.ui.theme.AppleSystemGreen
           ) {
             Box(contentAlignment = Alignment.Center) {
               Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = null,
-                tint = Color(0xFF596751),
-                modifier = Modifier.size(18.dp)
+                tint = Color.White,
+                modifier = Modifier.size(14.dp)
               )
             }
           }
 
-          Spacer(modifier = Modifier.width(12.dp))
-
-          Column(modifier = Modifier.weight(1f)) {
+          Column {
             Text(
-              text = "Task Completed • +120 XP",
-              fontSize = 13.sp,
+              text = "Task Completed",
+              fontSize = 12.sp,
               fontWeight = FontWeight.Bold,
               color = Color.White
             )
             Text(
               text = celebrationTask?.title ?: "",
               fontSize = 11.sp,
-              color = Color.White.copy(alpha = 0.7f),
+              color = Color.White.copy(alpha = 0.75f),
               maxLines = 1
-            )
-          }
-
-          Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = Color(0xFFD5E5C9)
-          ) {
-            Text(
-              text = "LEVEL 5",
-              fontSize = 10.sp,
-              fontWeight = FontWeight.Bold,
-              color = Color(0xFF596751),
-              modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
             )
           }
         }
