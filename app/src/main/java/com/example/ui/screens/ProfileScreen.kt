@@ -24,16 +24,24 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.Edit
+import com.example.data.auth.AuthResult
+import com.example.ui.sheets.AvatarPickerBottomSheet
+import com.example.ui.sheets.ChangePasswordBottomSheet
+import com.example.ui.sheets.EditProfileBottomSheet
+import com.example.ui.sheets.PRESET_AVATARS
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -105,12 +113,18 @@ fun ProfileScreen(
   onOpenAcademicManager: (() -> Unit)? = null,
   onUpdatePersonalTargets: ((Double, Int, Double) -> Unit)? = null,
   currentLanguage: AppLanguage = AppLanguage.ID,
-  onLanguageSelected: (AppLanguage) -> Unit = {}
+  onLanguageSelected: (AppLanguage) -> Unit = {},
+  onUpdateProfile: ((name: String, university: String, program: String, studentId: String, focusGoal: String) -> Unit)? = null,
+  onUpdateAvatar: ((avatarUri: String?, presetId: String?, colorHex: Long?) -> Unit)? = null,
+  onChangePassword: (suspend (currentPassword: String, newPassword: String) -> AuthResult)? = null
 ) {
   val context = LocalContext.current
   val haptic = LocalHapticFeedback.current
   val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
   var showTargetDialog by remember { mutableStateOf(false) }
+  var showAvatarPickerSheet by remember { mutableStateOf(false) }
+  var showEditProfileSheet by remember { mutableStateOf(false) }
+  var showChangePasswordSheet by remember { mutableStateOf(false) }
 
   val avatarInitials = remember(profile.name) {
     val words = profile.name.trim().split("\\s+".toRegex()).filter { it.isNotEmpty() }
@@ -191,19 +205,65 @@ fun ProfileScreen(
           modifier = Modifier.padding(16.dp),
           verticalAlignment = Alignment.CenterVertically
         ) {
-          Surface(
-            modifier = Modifier.size(56.dp),
-            shape = CircleShape,
-            color = BrandAvatarBg,
-            border = BorderStroke(1.5.dp, BrandAvatarBorder)
+          // Interactive Avatar with Camera Badge
+          val avatarBgColor = profile.avatarColorHex?.let { Color(it) } ?: BrandAvatarBg
+          val preset = PRESET_AVATARS.find { it.id == profile.avatarPresetId }
+
+          Box(
+            modifier = Modifier
+              .size(62.dp)
+              .clip(CircleShape)
+              .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                showAvatarPickerSheet = true
+              }
           ) {
-            Box(contentAlignment = Alignment.Center) {
-              Text(
-                text = avatarInitials,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = BrandCharcoal
-              )
+            Surface(
+              modifier = Modifier.fillMaxSize(),
+              shape = CircleShape,
+              color = avatarBgColor,
+              border = BorderStroke(1.5.dp, BrandAvatarBorder)
+            ) {
+              Box(contentAlignment = Alignment.Center) {
+                if (preset != null) {
+                  Text(
+                    text = preset.emoji,
+                    fontSize = 26.sp
+                  )
+                } else if (!profile.avatarUri.isNullOrEmpty()) {
+                  Text(
+                    text = "📷",
+                    fontSize = 24.sp
+                  )
+                } else {
+                  Text(
+                    text = avatarInitials,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (profile.avatarColorHex != null) Color.White else BrandCharcoal
+                  )
+                }
+              }
+            }
+
+            // Edit Camera Badge Overlay (Apple HIG style)
+            Surface(
+              modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .size(22.dp),
+              shape = CircleShape,
+              color = BrandCharcoal,
+              border = BorderStroke(1.5.dp, Color.White),
+              shadowElevation = 2.dp
+            ) {
+              Box(contentAlignment = Alignment.Center) {
+                Icon(
+                  imageVector = Icons.Default.PhotoCamera,
+                  contentDescription = "Ganti Avatar",
+                  tint = Color.White,
+                  modifier = Modifier.size(11.dp)
+                )
+              }
             }
           }
 
@@ -238,26 +298,62 @@ fun ProfileScreen(
               color = BrandSecondary.copy(alpha = 0.8f)
             )
 
-            if (profile.resolvedBadgeTier != VerifiedBadgeTier.NONE) {
-              Spacer(modifier = Modifier.height(6.dp))
-              val tierColor = Color(profile.resolvedBadgeTier.primaryColorHex)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+              // Edit Profile Button (Apple HIG / Linear style Pill)
               Surface(
-                shape = RoundedCornerShape(6.dp),
-                color = tierColor.copy(alpha = 0.10f),
-                border = BorderStroke(0.75.dp, tierColor.copy(alpha = 0.35f))
+                shape = RoundedCornerShape(8.dp),
+                color = BrandPillBg,
+                border = BorderStroke(1.dp, BrandBorderLight),
+                modifier = Modifier.clickable {
+                  haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                  showEditProfileSheet = true
+                }
               ) {
                 Row(
-                  modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                  modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
                   verticalAlignment = Alignment.CenterVertically,
                   horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                  VerifiedBadgeIcon(size = 13.dp, tier = profile.resolvedBadgeTier)
-                  Text(
-                    text = profile.resolvedBadgeTier.title,
-                    fontSize = 10.5.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = tierColor
+                  Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = null,
+                    tint = BrandCharcoal,
+                    modifier = Modifier.size(11.dp)
                   )
+                  Text(
+                    text = if (currentLanguage == AppLanguage.ID) "Edit Profil" else "Edit Profile",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = BrandCharcoal
+                  )
+                }
+              }
+
+              if (profile.resolvedBadgeTier != VerifiedBadgeTier.NONE) {
+                val tierColor = Color(profile.resolvedBadgeTier.primaryColorHex)
+                Surface(
+                  shape = RoundedCornerShape(8.dp),
+                  color = tierColor.copy(alpha = 0.10f),
+                  border = BorderStroke(0.75.dp, tierColor.copy(alpha = 0.35f))
+                ) {
+                  Row(
+                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                  ) {
+                    VerifiedBadgeIcon(size = 12.dp, tier = profile.resolvedBadgeTier)
+                    Text(
+                      text = profile.resolvedBadgeTier.title,
+                      fontSize = 10.sp,
+                      fontWeight = FontWeight.Bold,
+                      color = tierColor
+                    )
+                  }
                 }
               }
             }
@@ -265,6 +361,7 @@ fun ProfileScreen(
         }
       }
     }
+
 
     // 3. Level 5 Focus Architect Card (Milestone Banner)
     item {
@@ -788,7 +885,139 @@ fun ProfileScreen(
       }
     }
 
-    // 8. Sign Out Row
+    // 8. Security & Account Section
+    item {
+      Text(
+        text = if (currentLanguage == AppLanguage.ID) "KEAMANAN & AKUN" else "SECURITY & ACCOUNT",
+        fontSize = 11.sp,
+        fontWeight = FontWeight.Bold,
+        color = BrandSecondary,
+        letterSpacing = 0.8.sp
+      )
+    }
+
+    item {
+      Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, BrandBorder)
+      ) {
+        Column(modifier = Modifier.padding(horizontal = 14.dp)) {
+          // Change Password Row
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .clip(RoundedCornerShape(10.dp))
+              .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                showChangePasswordSheet = true
+              }
+              .padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+          ) {
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              modifier = Modifier.weight(1f)
+            ) {
+              Box(
+                modifier = Modifier
+                  .size(36.dp)
+                  .background(BrandPillBg, CircleShape),
+                contentAlignment = Alignment.Center
+              ) {
+                Icon(
+                  imageVector = Icons.Default.Lock,
+                  contentDescription = null,
+                  tint = BrandCharcoal,
+                  modifier = Modifier.size(18.dp)
+                )
+              }
+              Spacer(modifier = Modifier.width(12.dp))
+              Column {
+                Text(
+                  text = if (currentLanguage == AppLanguage.ID) "Ganti Kata Sandi" else "Change Password",
+                  fontSize = 13.sp,
+                  fontWeight = FontWeight.SemiBold,
+                  color = BrandCharcoal
+                )
+                Text(
+                  text = if (currentLanguage == AppLanguage.ID) "Amankan akun dengan kata sandi baru" else "Protect account with updated credentials",
+                  fontSize = 11.sp,
+                  color = BrandSecondary
+                )
+              }
+            }
+            Icon(
+              imageVector = Icons.Default.ChevronRight,
+              contentDescription = null,
+              tint = BrandSecondary,
+              modifier = Modifier.size(18.dp)
+            )
+          }
+
+          HorizontalDivider(color = BrandBorderLight, thickness = 1.dp)
+
+          // Email Info Row
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+          ) {
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              modifier = Modifier.weight(1f)
+            ) {
+              Box(
+                modifier = Modifier
+                  .size(36.dp)
+                  .background(BrandPillBg, CircleShape),
+                contentAlignment = Alignment.Center
+              ) {
+                Icon(
+                  imageVector = Icons.Default.Badge,
+                  contentDescription = null,
+                  tint = BrandCharcoal,
+                  modifier = Modifier.size(18.dp)
+                )
+              }
+              Spacer(modifier = Modifier.width(12.dp))
+              Column {
+                Text(
+                  text = if (currentLanguage == AppLanguage.ID) "Email Terdaftar" else "Registered Email",
+                  fontSize = 13.sp,
+                  fontWeight = FontWeight.SemiBold,
+                  color = BrandCharcoal
+                )
+                Text(
+                  text = profile.email,
+                  fontSize = 11.sp,
+                  color = BrandSecondary
+                )
+              }
+            }
+            Surface(
+              shape = RoundedCornerShape(6.dp),
+              color = AppleSystemGreen.copy(alpha = 0.12f),
+              border = BorderStroke(0.5.dp, AppleSystemGreen.copy(alpha = 0.4f))
+            ) {
+              Text(
+                text = "TERVERIFIKASI",
+                fontSize = 9.5.sp,
+                fontWeight = FontWeight.Bold,
+                color = AppleSystemGreen,
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+              )
+            }
+          }
+        }
+      }
+    }
+
+    // 9. Sign Out Row
     item {
       Surface(
         modifier = Modifier
@@ -847,7 +1076,40 @@ fun ProfileScreen(
       }
     )
   }
+
+  if (showAvatarPickerSheet) {
+    AvatarPickerBottomSheet(
+      currentAvatarUri = profile.avatarUri,
+      currentPresetId = profile.avatarPresetId,
+      currentColorHex = profile.avatarColorHex ?: 0xFF1E293B,
+      initials = avatarInitials,
+      onDismiss = { showAvatarPickerSheet = false },
+      onSaveAvatar = { uri, presetId, colorHex ->
+        onUpdateAvatar?.invoke(uri, presetId, colorHex)
+        showAvatarPickerSheet = false
+      }
+    )
+  }
+
+  if (showEditProfileSheet) {
+    EditProfileBottomSheet(
+      profile = profile,
+      onDismiss = { showEditProfileSheet = false },
+      onSaveProfile = { name, univ, prog, nim, goal ->
+        onUpdateProfile?.invoke(name, univ, prog, nim, goal)
+        showEditProfileSheet = false
+      }
+    )
+  }
+
+  if (showChangePasswordSheet && onChangePassword != null) {
+    ChangePasswordBottomSheet(
+      onDismiss = { showChangePasswordSheet = false },
+      onChangePassword = onChangePassword
+    )
+  }
 }
+
 
 @Composable
 fun EditPersonalTargetsDialog(

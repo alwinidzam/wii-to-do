@@ -84,11 +84,16 @@ class ToDoViewModel(
     university: String? = null,
     program: String? = null,
     studentId: String? = null,
+    focusGoal: String? = null,
     targetGpa: Double? = null,
     targetSks: Int? = null,
     targetDailyFocusHours: Double? = null
   ) {
-    repository.updateStudentProfile(name, university, program, studentId, targetGpa, targetSks, targetDailyFocusHours)
+    repository.updateStudentProfile(name, university, program, studentId, focusGoal, targetGpa, targetSks, targetDailyFocusHours)
+  }
+
+  fun updateProfilePhoto(avatarUri: String?, presetId: String? = null, colorHex: Long? = null) {
+    repository.updateProfilePhoto(avatarUri, presetId, colorHex)
   }
 
   private val _currentDestination = MutableStateFlow<AppDestination>(
@@ -365,6 +370,18 @@ class ToDoViewModel(
   fun completeCurrentSprint(markTaskDone: Boolean = false) {
     repository.completeCurrentSprint(markTaskDone)
     navigateTo(AppDestination.FocusSummary)
+  }
+
+  fun dismissFocusSession() {
+    repository.dismissFocusSession()
+  }
+
+  fun quickCompleteFocusTask() {
+    repository.quickCompleteFocusTask()
+  }
+
+  suspend fun changePassword(currentPassword: String, newPassword: String): com.example.data.auth.AuthResult {
+    return repository.changePassword(currentPassword, newPassword)
   }
 
   fun recordSprintReflection(energy: String, note: String) {

@@ -118,4 +118,10 @@ interface UserAccountDao {
 
   @Query("SELECT * FROM user_accounts")
   suspend fun getAllUsers(): List<UserAccountEntity>
+
+  @Query("UPDATE user_accounts SET passwordHash = :passwordHash, salt = :salt WHERE LOWER(email) = LOWER(:email)")
+  suspend fun updatePassword(email: String, passwordHash: String, salt: String): Int
+
+  @Query("UPDATE user_accounts SET displayName = :displayName WHERE LOWER(email) = LOWER(:email)")
+  suspend fun updateDisplayName(email: String, displayName: String): Int
 }

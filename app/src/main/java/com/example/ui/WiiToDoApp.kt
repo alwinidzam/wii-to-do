@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.components.BottomDockNavigation
+import com.example.ui.components.FloatingFocusMiniPlayer
 import com.example.ui.components.NavigationTab
 import com.example.ui.dialogs.LevelUpDialog
 import com.example.ui.screens.ActiveFocusScreen
@@ -387,7 +388,22 @@ fun WiiToDoApp(
                     )
                   },
                   currentLanguage = currentLanguage,
-                  onLanguageSelected = { viewModel.setLanguage(it) }
+                  onLanguageSelected = { viewModel.setLanguage(it) },
+                  onUpdateProfile = { name, univ, prog, nim, goal ->
+                    viewModel.updateStudentProfile(
+                      name = name,
+                      university = univ,
+                      program = prog,
+                      studentId = nim,
+                      focusGoal = goal
+                    )
+                  },
+                  onUpdateAvatar = { uri, preset, color ->
+                    viewModel.updateProfilePhoto(uri, preset, color)
+                  },
+                  onChangePassword = { cur, new ->
+                    viewModel.changePassword(cur, new)
+                  }
                 )
               }
             }
@@ -593,6 +609,20 @@ fun WiiToDoApp(
     }
   }
 }
+
+    // Global Persistent Floating Focus Mini-Player (Apple Dynamic Island / Spotify style)
+    if (activeFocus != null && !activeFocus!!.isDismissed && destination !is AppDestination.ActiveFocus && destination !is AppDestination.FocusSummary) {
+      FloatingFocusMiniPlayer(
+        session = activeFocus!!,
+        onExpandClick = { viewModel.navigateTo(AppDestination.ActiveFocus) },
+        onToggleTimer = { viewModel.toggleFocusTimerRunning() },
+        onQuickComplete = { viewModel.quickCompleteFocusTask() },
+        onDismiss = { viewModel.dismissFocusSession() },
+        modifier = Modifier
+          .align(Alignment.BottomCenter)
+          .padding(bottom = if (isPrimaryTab) 86.dp else 24.dp)
+      )
+    }
 
     // Modal Sheet 1: Add Subtask
     if (subTaskSheetParentId != null) {

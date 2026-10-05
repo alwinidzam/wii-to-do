@@ -182,9 +182,14 @@ fun ScheduleItemToEntity(item: ScheduleCommitment): ScheduleEntity = ScheduleEnt
 data class UserProfileEntity(
   @PrimaryKey val id: String = "default_user",
   val name: String = "Alwi Pratama",
-  val email: String = "alwi.student@university.edu",
-  val program: String = "Informatics Engineering • Year 3",
-  val focusGoal: String = "Focusing on Thesis & UI Architecture",
+  val email: String = "alwinizam0405@gmail.com",
+  val program: String = "Teknik Informatika • Semester 5",
+  val university: String = "Universitas Teknologi Just Wiu",
+  val studentId: String = "2110512044",
+  val focusGoal: String = "Fokus Skripsi & Arsitektur UI Mobile",
+  val avatarUri: String? = null,
+  val avatarPresetId: String = "architect_1",
+  val avatarColorHex: Long = 0xFF1E293B,
   val level: Int = 5,
   val levelTitle: String = "Focus Architect",
   val currentXp: Int = 1000,
@@ -198,14 +203,22 @@ data class UserProfileEntity(
   val morningBriefingEnabled: Boolean = true,
   val autoFocusMode: Boolean = true,
   val hapticFeedback: Boolean = true,
-  val completionSounds: Boolean = true
+  val completionSounds: Boolean = true,
+  val targetGpa: Double = 3.85,
+  val targetSks: Int = 21,
+  val targetDailyFocusHours: Double = 4.0
 )
 
 fun UserProfileEntity.toModel(): UserProfile = UserProfile(
   name = name,
   email = email,
   program = program,
+  university = university,
+  studentId = studentId,
   focusGoal = focusGoal,
+  avatarUri = avatarUri,
+  avatarPresetId = avatarPresetId,
+  avatarColorHex = avatarColorHex,
   level = level,
   levelTitle = levelTitle,
   currentXp = currentXp,
@@ -219,14 +232,22 @@ fun UserProfileEntity.toModel(): UserProfile = UserProfile(
   morningBriefingEnabled = morningBriefingEnabled,
   autoFocusMode = autoFocusMode,
   hapticFeedback = hapticFeedback,
-  completionSounds = completionSounds
+  completionSounds = completionSounds,
+  targetGpa = targetGpa,
+  targetSks = targetSks,
+  targetDailyFocusHours = targetDailyFocusHours
 )
 
 fun UserProfile.toEntity(): UserProfileEntity = UserProfileEntity(
   name = name,
   email = email,
   program = program,
+  university = university,
+  studentId = studentId,
   focusGoal = focusGoal,
+  avatarUri = avatarUri,
+  avatarPresetId = avatarPresetId,
+  avatarColorHex = avatarColorHex,
   level = level,
   levelTitle = levelTitle,
   currentXp = currentXp,
@@ -240,7 +261,10 @@ fun UserProfile.toEntity(): UserProfileEntity = UserProfileEntity(
   morningBriefingEnabled = morningBriefingEnabled,
   autoFocusMode = autoFocusMode,
   hapticFeedback = hapticFeedback,
-  completionSounds = completionSounds
+  completionSounds = completionSounds,
+  targetGpa = targetGpa,
+  targetSks = targetSks,
+  targetDailyFocusHours = targetDailyFocusHours
 )
 
 @Entity(tableName = "user_accounts")

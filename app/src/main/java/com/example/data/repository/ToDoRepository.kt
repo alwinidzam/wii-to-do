@@ -493,6 +493,7 @@ class ToDoRepository private constructor(
     university: String? = null,
     program: String? = null,
     studentId: String? = null,
+    focusGoal: String? = null,
     targetGpa: Double? = null,
     targetSks: Int? = null,
     targetDailyFocusHours: Double? = null
@@ -503,12 +504,65 @@ class ToDoRepository private constructor(
       university = university ?: current.university,
       program = program ?: current.program,
       studentId = studentId ?: current.studentId,
+      focusGoal = focusGoal ?: current.focusGoal,
       targetGpa = targetGpa ?: current.targetGpa,
       targetSks = targetSks ?: current.targetSks,
       targetDailyFocusHours = targetDailyFocusHours ?: current.targetDailyFocusHours
     )
     _userProfile.value = updated
+    scope.launch {
+      try {
+        db?.userProfileDao()?.insertOrUpdateProfile(updated.toEntity())
+        if (name != null) {
+          db?.userAccountDao()?.updateDisplayName(updated.email, name)
+        }
+      } catch (_: Exception) {}
+    }
+  }
+
+  fun updateProfilePhoto(avatarUri: String?, presetId: String? = null, colorHex: Long? = null) {
+    val current = _userProfile.value
+    val updated = current.copy(
+      avatarUri = avatarUri,
+      avatarPresetId = presetId ?: current.avatarPresetId,
+      avatarColorHex = colorHex ?: current.avatarColorHex
+    )
+    _userProfile.value = updated
     scope.launch { try { db?.userProfileDao()?.insertOrUpdateProfile(updated.toEntity()) } catch (_: Exception) {} }
+  }
+
+  suspend fun changePassword(currentPassword: String, newPassword: String): AuthResult = withContext(Dispatchers.IO) {
+    val cleanEmail = _userProfile.value.email.trim().lowercase()
+    val cleanCurrent = currentPassword.trim()
+    val cleanNew = newPassword.trim()
+
+    if (cleanCurrent.isBlank()) {
+      return@withContext AuthResult.Error("Masukkan kata sandi saat ini.", AuthField.PASSWORD)
+    }
+    if (cleanNew.length < 6) {
+      return@withContext AuthResult.Error("Kata sandi baru minimal 6 karakter.", AuthField.PASSWORD)
+    }
+    if (cleanCurrent == cleanNew) {
+      return@withContext AuthResult.Error("Kata sandi baru tidak boleh sama dengan kata sandi saat ini.", AuthField.PASSWORD)
+    }
+
+    val dbInstance = db ?: applicationContext?.let { WiiDatabase.getDatabase(it) }
+      ?: return@withContext AuthResult.Error("Database belum diinisialisasi.", AuthField.GENERAL)
+
+    ensureDeveloperAccountSeeded(dbInstance)
+
+    val account = dbInstance.userAccountDao().getUserByEmail(cleanEmail)
+      ?: return@withContext AuthResult.Error("Akun tidak ditemukan.", AuthField.EMAIL)
+
+    val isPasswordValid = PasswordHasher.verifyPassword(cleanCurrent, account.salt, account.passwordHash)
+    if (!isPasswordValid) {
+      return@withContext AuthResult.Error("Kata sandi saat ini salah. Silakan coba lagi.", AuthField.PASSWORD)
+    }
+
+    val newSalt = PasswordHasher.generateSalt()
+    val newHash = PasswordHasher.hashPassword(cleanNew, newSalt)
+    dbInstance.userAccountDao().updatePassword(cleanEmail, newHash, newSalt)
+    AuthResult.Success(_userProfile.value)
   }
 
   fun dismissCelebration() {
@@ -776,10 +830,14 @@ class ToDoRepository private constructor(
   ) {
     val task = taskId?.let { id -> _tasks.value.find { it.id == id } }
       ?: _tasks.value.find { it.title.equals(taskTitle, ignoreCase = true) }
+    val totalSubs = task?.subtasks?.size ?: 0
+    val doneSubs = task?.subtasks?.count { it.isCompleted } ?: 0
     val firstIncomplete = task?.subtasks?.firstOrNull { !it.isCompleted }?.title
     val target = targetSubtask ?: firstIncomplete ?: "Fokus pengerjaan $taskTitle"
+    val subIndex = if (totalSubs > 0) (doneSubs + 1).coerceAtMost(totalSubs) else 0
 
     val durationSecs = if (mode == com.example.data.model.FocusTimerMode.FLOW_OPEN) 0 else minutes * 60
+    val now = System.currentTimeMillis()
 
     _activeFocusSession.value = FocusSessionState(
       taskId = task?.id ?: taskId,
@@ -787,9 +845,15 @@ class ToDoRepository private constructor(
       courseBadge = courseBadge ?: task?.courseName,
       courseColorHex = courseColorHex,
       targetSubtask = target,
+      currentSubtaskIndex = subIndex,
+      totalSubtasks = totalSubs,
       totalSeconds = durationSecs,
       remainingSeconds = durationSecs,
       isRunning = true,
+      isCompleted = false,
+      isDismissed = false,
+      startTimestampMillis = now,
+      lastTickTimestampMillis = now,
       soundscape = soundscape,
       mode = mode
     )
@@ -797,29 +861,62 @@ class ToDoRepository private constructor(
 
   fun tickFocusSecond(): Boolean {
     val current = _activeFocusSession.value ?: return false
-    if (!current.isRunning) return false
+    if (!current.isRunning || current.isCompleted) return false
+
+    val now = System.currentTimeMillis()
+    val elapsedMillis = (now - current.lastTickTimestampMillis).coerceAtLeast(0)
+    val elapsedSecs = (elapsedMillis / 1000).toInt().coerceAtLeast(1)
 
     if (current.mode == com.example.data.model.FocusTimerMode.FLOW_OPEN) {
-      val nextTotal = current.totalSeconds + 1
-      _activeFocusSession.value = current.copy(totalSeconds = nextTotal, remainingSeconds = nextTotal)
+      val nextTotal = current.totalSeconds + elapsedSecs
+      _activeFocusSession.value = current.copy(
+        totalSeconds = nextTotal,
+        remainingSeconds = nextTotal,
+        lastTickTimestampMillis = now
+      )
       return false
     }
 
-    if (current.remainingSeconds <= 0) return false
-    val nextRemaining = current.remainingSeconds - 1
+    if (current.remainingSeconds <= 0) {
+      _activeFocusSession.value = current.copy(remainingSeconds = 0, isRunning = false, isCompleted = true)
+      return false
+    }
+
+    val nextRemaining = (current.remainingSeconds - elapsedSecs).coerceAtLeast(0)
     return if (nextRemaining <= 0) {
-      _activeFocusSession.value = current.copy(remainingSeconds = 0, isRunning = false)
+      _activeFocusSession.value = current.copy(
+        remainingSeconds = 0,
+        isRunning = false,
+        isCompleted = true,
+        lastTickTimestampMillis = now
+      )
       completeCurrentSprint(markTaskDone = false)
       true
     } else {
-      _activeFocusSession.value = current.copy(remainingSeconds = nextRemaining)
+      _activeFocusSession.value = current.copy(
+        remainingSeconds = nextRemaining,
+        lastTickTimestampMillis = now
+      )
       false
     }
   }
 
+  fun dismissFocusSession() {
+    _activeFocusSession.value = null
+  }
+
+  fun quickCompleteFocusTask() {
+    val current = _activeFocusSession.value ?: return
+    completeCurrentSprint(markTaskDone = true)
+    _activeFocusSession.value = null
+  }
+
   fun toggleFocusTimerRunning() {
     _activeFocusSession.value = _activeFocusSession.value?.let { current ->
-      current.copy(isRunning = !current.isRunning)
+      current.copy(
+        isRunning = !current.isRunning,
+        lastTickTimestampMillis = System.currentTimeMillis()
+      )
     }
   }
 
