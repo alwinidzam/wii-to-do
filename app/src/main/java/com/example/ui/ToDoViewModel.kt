@@ -313,7 +313,8 @@ class ToDoViewModel(
     priority: TaskPriority,
     dueTime: String,
     dueDate: String,
-    courseName: String? = null
+    courseName: String? = null,
+    attachments: List<com.example.data.model.AttachmentItem> = emptyList()
   ): String {
     return repository.addTask(
       title = title,
@@ -323,8 +324,29 @@ class ToDoViewModel(
       priority = priority,
       dueTime = dueTime,
       dueDate = dueDate,
-      courseName = courseName
+      courseName = courseName,
+      attachments = attachments
     )
+  }
+
+  fun addAttachmentToTask(taskId: String, attachment: com.example.data.model.AttachmentItem) {
+    repository.addAttachmentToTask(taskId, attachment)
+  }
+
+  fun removeAttachmentFromTask(taskId: String, attachmentId: String) {
+    repository.removeAttachmentFromTask(taskId, attachmentId)
+  }
+
+  fun addAttachmentToProject(projectId: String, attachment: com.example.data.model.AttachmentItem) {
+    repository.addAttachmentToProject(projectId, attachment)
+  }
+
+  fun removeAttachmentFromProject(projectId: String, attachmentId: String) {
+    repository.removeAttachmentFromProject(projectId, attachmentId)
+  }
+
+  fun addSubTaskToActiveFocus(title: String) {
+    repository.addSubTaskToActiveFocus(title)
   }
 
   fun updateKanbanStatus(taskId: String, status: KanbanColumn) {

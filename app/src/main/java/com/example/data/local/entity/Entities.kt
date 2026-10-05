@@ -23,6 +23,7 @@ data class TaskEntity(
   val isCompleted: Boolean = false,
   val completedAt: String? = null,
   val subtasks: List<SubTask> = emptyList(),
+  val attachments: List<com.example.data.model.AttachmentItem> = emptyList(),
   val tags: List<String> = emptyList(),
   val kanbanStatus: KanbanColumn = KanbanColumn.TO_DO,
   val estimatedEffortMinutes: Int = 30,
@@ -50,12 +51,13 @@ fun TaskEntity.toModel(): TaskItem = TaskItem(
   isCompleted = isCompleted,
   completedAt = completedAt,
   subtasks = subtasks,
+  attachments = attachments,
   tags = tags,
   kanbanStatus = kanbanStatus,
   estimatedEffortMinutes = estimatedEffortMinutes,
   assignedTo = assignedTo,
   urgencyBadge = urgencyBadge,
-  attachmentCount = attachmentCount,
+  attachmentCount = if (attachments.isNotEmpty()) attachments.size else attachmentCount,
   subtaskBadge = subtaskBadge,
   subtasksCompletedCount = subtasksCompletedCount,
   subtasksTotalCount = subtasksTotalCount,
@@ -77,12 +79,13 @@ fun TaskItem.toEntity(): TaskEntity = TaskEntity(
   isCompleted = isCompleted,
   completedAt = completedAt,
   subtasks = subtasks,
+  attachments = attachments,
   tags = tags,
   kanbanStatus = kanbanStatus,
   estimatedEffortMinutes = estimatedEffortMinutes,
   assignedTo = assignedTo,
   urgencyBadge = urgencyBadge,
-  attachmentCount = attachmentCount,
+  attachmentCount = if (attachments.isNotEmpty()) attachments.size else attachmentCount,
   subtaskBadge = subtaskBadge,
   subtasksCompletedCount = subtasksCompletedCount,
   subtasksTotalCount = subtasksTotalCount,
@@ -105,7 +108,8 @@ data class ProjectEntity(
   val activeSprint: String = "Sprint #2 Active",
   val nextTaskPreview: String = "",
   val nextTaskDue: String = "",
-  val tags: List<String> = emptyList()
+  val tags: List<String> = emptyList(),
+  val attachments: List<com.example.data.model.AttachmentItem> = emptyList()
 )
 
 fun ProjectEntity.toModel(): ProjectItem = ProjectItem(
@@ -120,7 +124,8 @@ fun ProjectEntity.toModel(): ProjectItem = ProjectItem(
   activeSprint = activeSprint,
   nextTaskPreview = nextTaskPreview,
   nextTaskDue = nextTaskDue,
-  tags = tags
+  tags = tags,
+  attachments = attachments
 )
 
 fun ProjectItem.toEntity(): ProjectEntity = ProjectEntity(
@@ -135,7 +140,8 @@ fun ProjectItem.toEntity(): ProjectEntity = ProjectEntity(
   activeSprint = activeSprint,
   nextTaskPreview = nextTaskPreview,
   nextTaskDue = nextTaskDue,
-  tags = tags
+  tags = tags,
+  attachments = attachments
 )
 
 @Entity(tableName = "schedules")

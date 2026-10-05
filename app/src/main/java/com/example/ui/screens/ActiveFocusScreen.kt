@@ -2,7 +2,12 @@ package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -27,6 +32,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -39,22 +46,32 @@ import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -72,19 +89,22 @@ import com.example.ui.theme.BrandCharcoal
 import com.example.ui.theme.BrandSecondary
 
 /**
- * High-End Apple HIG & Linear-Compliant Focus Timer:
- * - Pure, distraction-free environment (no audio/music noise bloat)
- * - Live interactive subtask checklist linked to active task
- * - 1-tap mode switcher: Pomodoro (25m), Deep Sprint (50m), Open Flow (Count-up)
+ * Super High-End Apple HIG & Linear-Grade Active Focus Engine:
+ * - Concentric circular progress arc with glowing sweep indicator bead
+ * - Ambient breathing pulse aura when timer is actively running
+ * - Tabular monospaced numerals with zero jitter during countdown
+ * - Instant mode switching (25m Pomodoro, 50m Deep Sprint, Open Flow) with 100% strict duration synchronization
+ * - Dynamic real subtask checklist linked to Room DB task
+ * - Inline "+ Tambah Subtask" composer to break down milestones on the fly
  * - Tactile Haptic Engine feedback on all interactions
- * - Dual finish options: Finish Sprint vs Selesaikan Tugas & Sprint
- * - 44x44 minimum touch targets & smooth circular ring typography
+ * - Dual finish workflows: "Selesai Sprint" (log time & XP) vs "Selesaikan Tugas Sekarang" (complete task & sprint)
  */
 @Composable
 fun ActiveFocusScreen(
   session: FocusSessionState,
   subtasks: List<SubTask> = emptyList(),
   onToggleSubTask: ((String) -> Unit)? = null,
+  onAddSubTask: ((String) -> Unit)? = null,
   onClose: () -> Unit,
   onToggleTimer: () -> Unit,
   onAddFiveMinutes: () -> Unit,
@@ -95,6 +115,9 @@ fun ActiveFocusScreen(
   val haptic = LocalHapticFeedback.current
   val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
   val scrollState = rememberScrollState()
+
+  var newSubtaskInput by remember { mutableStateOf("") }
+  var isAddingSubtask by remember { mutableStateOf(false) }
 
   val mins = session.remainingSeconds / 60
   val secs = session.remainingSeconds % 60
@@ -110,6 +133,27 @@ fun ActiveFocusScreen(
     targetValue = rawProgress.coerceIn(0f, 1f),
     animationSpec = tween(durationMillis = 500),
     label = "focus_progress"
+  )
+
+  // Subtle breathing pulse aura for the active timer
+  val infiniteTransition = rememberInfiniteTransition(label = "focus_pulse")
+  val pulseAlpha by infiniteTransition.animateFloat(
+    initialValue = 0.06f,
+    targetValue = 0.18f,
+    animationSpec = infiniteRepeatable(
+      animation = tween(2000, easing = FastOutSlowInEasing),
+      repeatMode = RepeatMode.Reverse
+    ),
+    label = "pulse_alpha"
+  )
+  val pulseScale by infiniteTransition.animateFloat(
+    initialValue = 0.98f,
+    targetValue = 1.05f,
+    animationSpec = infiniteRepeatable(
+      animation = tween(2000, easing = FastOutSlowInEasing),
+      repeatMode = RepeatMode.Reverse
+    ),
+    label = "pulse_scale"
   )
 
   val completedSubtasks = subtasks.count { it.isCompleted }
@@ -155,7 +199,7 @@ fun ActiveFocusScreen(
         }
       }
 
-      // Minimalist Focus Pill Badge
+      // Minimalist Mode Pill Badge
       Surface(
         shape = RoundedCornerShape(14.dp),
         color = AppleSystemIndigo.copy(alpha = 0.10f),
@@ -177,7 +221,7 @@ fun ActiveFocusScreen(
 
     Spacer(modifier = Modifier.height(14.dp))
 
-    // Mode Selector Segmented Chips
+    // Mode Selector Segmented Chips (Strictly synchronizes duration to selected mode)
     Row(
       modifier = Modifier
         .fillMaxWidth()
@@ -272,36 +316,86 @@ fun ActiveFocusScreen(
 
     Spacer(modifier = Modifier.height(24.dp))
 
-    // 3. Apple-style Circular Countdown Ring
+    // 3. Apple-style High-End Concentric Circular Countdown Ring with Glow Bead
     Box(
-      modifier = Modifier.size(230.dp),
+      modifier = Modifier.size(240.dp),
       contentAlignment = Alignment.Center
     ) {
-      Canvas(modifier = Modifier.size(210.dp)) {
-        val strokeWidth = 10.dp.toPx()
-        // Background track (iOS System Gray 5)
+      Canvas(modifier = Modifier.size(220.dp)) {
+        val strokeWidth = 11.dp.toPx()
+        val radius = (size.minDimension - strokeWidth) / 2
+        val activeColor = if (session.isRunning) AppleSystemBlue else BrandSecondary
+
+        // 1. Subtle breathing aura glow when running
+        if (session.isRunning) {
+          drawCircle(
+            color = activeColor.copy(alpha = pulseAlpha),
+            radius = (radius + strokeWidth * 1.5f) * pulseScale
+          )
+        }
+
+        // 2. Background track
         drawCircle(
-          color = Color(0xFFE5E5EA),
-          radius = (size.minDimension - strokeWidth) / 2,
+          color = Color(0xFFE5E7EB),
+          radius = radius,
           style = Stroke(width = strokeWidth)
         )
-        // Active progress arc
+
+        // 3. Inner guide ring (Linear precision aesthetic)
+        drawCircle(
+          color = Color(0xFFE5E7EB).copy(alpha = 0.4f),
+          radius = radius - strokeWidth * 0.9f,
+          style = Stroke(width = 1.dp.toPx())
+        )
+
+        // 4. Active progress arc
         drawArc(
-          color = if (session.isRunning) AppleSystemBlue else BrandSecondary,
+          color = activeColor,
           startAngle = -90f,
           sweepAngle = animatedProgress * 360f,
           useCenter = false,
           style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
         )
+
+        // 5. Glowing thumb indicator bead at the tip of the sweep arc
+        if (animatedProgress > 0.005f || session.mode == FocusTimerMode.FLOW_OPEN) {
+          val angleDeg = -90f + (animatedProgress * 360f)
+          val angleRad = Math.toRadians(angleDeg.toDouble())
+          val beadX = center.x + radius * Math.cos(angleRad).toFloat()
+          val beadY = center.y + radius * Math.sin(angleRad).toFloat()
+
+          // Outer halo
+          drawCircle(
+            color = activeColor.copy(alpha = 0.40f),
+            radius = strokeWidth * 0.9f,
+            center = Offset(beadX, beadY)
+          )
+          // Solid bead border
+          drawCircle(
+            color = Color.White,
+            radius = strokeWidth * 0.55f,
+            center = Offset(beadX, beadY)
+          )
+          // Bead center core
+          drawCircle(
+            color = activeColor,
+            radius = strokeWidth * 0.35f,
+            center = Offset(beadX, beadY)
+          )
+        }
       }
 
       Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        // Tabular monospaced digits to eliminate jitter
         Text(
           text = timeString,
-          fontSize = 44.sp,
-          fontWeight = FontWeight.Bold,
-          color = BrandCharcoal,
-          letterSpacing = (-0.5).sp
+          style = TextStyle(
+            fontFamily = FontFamily.Monospace,
+            fontSize = 44.sp,
+            fontWeight = FontWeight.Bold,
+            color = BrandCharcoal,
+            letterSpacing = (-1.0).sp
+          )
         )
         Spacer(modifier = Modifier.height(4.dp))
         Surface(
@@ -323,36 +417,35 @@ fun ActiveFocusScreen(
     Spacer(modifier = Modifier.height(24.dp))
 
     // 4. Live Interactive Subtask Checklist Card
-    if (subtasks.isNotEmpty()) {
-      Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = BrandCard,
-        border = androidx.compose.foundation.BorderStroke(1.dp, BrandBorder)
-      ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Text(
-              text = "SUBTASKS PROGRESS",
-              fontSize = 11.sp,
-              fontWeight = FontWeight.Bold,
-              color = BrandSecondary,
-              letterSpacing = 0.8.sp
-            )
-            Text(
-              text = "$completedSubtasks / $totalSubtasks",
-              fontSize = 12.sp,
-              fontWeight = FontWeight.Bold,
-              color = BrandCharcoal
-            )
-          }
+    Surface(
+      modifier = Modifier.fillMaxWidth(),
+      shape = RoundedCornerShape(16.dp),
+      color = BrandCard,
+      border = androidx.compose.foundation.BorderStroke(1.dp, BrandBorder)
+    ) {
+      Column(modifier = Modifier.padding(16.dp)) {
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Text(
+            text = "SUBTASKS PROGRESS",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = BrandSecondary,
+            letterSpacing = 0.8.sp
+          )
+          Text(
+            text = if (totalSubtasks > 0) "$completedSubtasks / $totalSubtasks" else "Belum ada langkah",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = BrandCharcoal
+          )
+        }
 
+        if (totalSubtasks > 0) {
           Spacer(modifier = Modifier.height(8.dp))
-
           LinearProgressIndicator(
             progress = { subtaskProgressFraction },
             modifier = Modifier
@@ -362,9 +455,11 @@ fun ActiveFocusScreen(
             color = AppleSystemGreen,
             trackColor = BrandBorder
           )
+        }
 
-          Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
+        if (subtasks.isNotEmpty()) {
           subtasks.forEach { sub ->
             Row(
               modifier = Modifier
@@ -411,27 +506,11 @@ fun ActiveFocusScreen(
               }
             }
           }
-        }
-      }
-    } else if (session.targetSubtask.isNotBlank()) {
-      Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = BrandCard,
-        border = androidx.compose.foundation.BorderStroke(1.dp, BrandBorder)
-      ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-          Text(
-            text = "CURRENT MILESTONE STEP",
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            color = BrandSecondary,
-            letterSpacing = 0.8.sp
-          )
-          Spacer(modifier = Modifier.height(8.dp))
+        } else if (session.targetSubtask.isNotBlank()) {
           Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(vertical = 4.dp)
           ) {
             Box(
               modifier = Modifier
@@ -440,11 +519,98 @@ fun ActiveFocusScreen(
             )
             Text(
               text = session.targetSubtask,
-              fontSize = 14.sp,
+              fontSize = 13.5.sp,
               fontWeight = FontWeight.SemiBold,
               color = BrandCharcoal,
               modifier = Modifier.weight(1f)
             )
+          }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Inline Add Subtask Expander
+        if (isAddingSubtask) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            OutlinedTextField(
+              value = newSubtaskInput,
+              onValueChange = { newSubtaskInput = it },
+              placeholder = { Text("Tulis subtask baru...", fontSize = 12.sp) },
+              modifier = Modifier.weight(1f),
+              singleLine = true,
+              keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+              keyboardActions = KeyboardActions(
+                onDone = {
+                  if (newSubtaskInput.isNotBlank()) {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onAddSubTask?.invoke(newSubtaskInput.trim())
+                    newSubtaskInput = ""
+                    isAddingSubtask = false
+                  }
+                }
+              ),
+              colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = AppleSystemBlue,
+                unfocusedBorderColor = BrandBorder
+              ),
+              shape = RoundedCornerShape(10.dp)
+            )
+            IconButton(
+              onClick = {
+                if (newSubtaskInput.isNotBlank()) {
+                  haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                  onAddSubTask?.invoke(newSubtaskInput.trim())
+                  newSubtaskInput = ""
+                  isAddingSubtask = false
+                }
+              },
+              modifier = Modifier
+                .size(40.dp)
+                .background(AppleSystemBlue, RoundedCornerShape(10.dp))
+            ) {
+              Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = "Simpan",
+                tint = Color.White,
+                modifier = Modifier.size(18.dp)
+              )
+            }
+          }
+        } else {
+          Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = BrandCanvas,
+            border = androidx.compose.foundation.BorderStroke(1.dp, BrandBorder),
+            modifier = Modifier
+              .fillMaxWidth()
+              .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                isAddingSubtask = true
+              }
+          ) {
+            Row(
+              modifier = Modifier.padding(vertical = 9.dp, horizontal = 12.dp),
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.Center
+            ) {
+              Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                tint = BrandCharcoal,
+                modifier = Modifier.size(16.dp)
+              )
+              Spacer(modifier = Modifier.width(6.dp))
+              Text(
+                text = "Tambah Subtask / Langkah",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = BrandCharcoal
+              )
+            }
           }
         }
       }

@@ -24,6 +24,17 @@ data class SubTask(
   val completedAt: String? = null
 )
 
+data class AttachmentItem(
+  val id: String = java.util.UUID.randomUUID().toString(),
+  val ownerId: String = "",
+  val fileName: String,
+  val fileSizeFormatted: String = "",
+  val fileSizeBytes: Long = 0L,
+  val mimeType: String = "*/*",
+  val localFilePath: String,
+  val createdAt: Long = System.currentTimeMillis()
+)
+
 data class TaskItem(
   val id: String,
   val title: String,
@@ -36,6 +47,7 @@ data class TaskItem(
   val isCompleted: Boolean = false,
   val completedAt: String? = null,
   val subtasks: List<SubTask> = emptyList(),
+  val attachments: List<AttachmentItem> = emptyList(),
   val tags: List<String> = emptyList(),
   val kanbanStatus: KanbanColumn = KanbanColumn.TO_DO,
   val estimatedEffortMinutes: Int = 30,
@@ -50,6 +62,9 @@ data class TaskItem(
   val isDeleted: Boolean = false,
   val deletedAt: Long? = null
 ) {
+  val actualAttachmentCount: Int
+    get() = if (attachments.isNotEmpty()) attachments.size else (attachmentCount ?: 0)
+
   val actualSubtaskBadge: String?
     get() = if (subtasks.isNotEmpty()) "${subtasks.count { it.isCompleted }}/${subtasks.size} sub-tasks" else subtaskBadge
 
@@ -85,7 +100,8 @@ data class ProjectItem(
   val activeSprint: String = "Sprint #2 Active",
   val nextTaskPreview: String = "",
   val nextTaskDue: String = "",
-  val tags: List<String> = emptyList()
+  val tags: List<String> = emptyList(),
+  val attachments: List<AttachmentItem> = emptyList()
 )
 
 enum class VerifiedBadgeTier(

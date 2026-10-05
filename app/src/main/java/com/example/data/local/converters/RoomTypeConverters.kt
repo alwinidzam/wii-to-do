@@ -103,4 +103,51 @@ class RoomTypeConverters {
       KanbanColumn.TO_DO
     }
   }
+
+  @TypeConverter
+  fun fromAttachmentList(attachments: List<com.example.data.model.AttachmentItem>?): String {
+    if (attachments.isNullOrEmpty()) return "[]"
+    val array = JSONArray()
+    for (item in attachments) {
+      val obj = JSONObject().apply {
+        put("id", item.id)
+        put("ownerId", item.ownerId)
+        put("fileName", item.fileName)
+        put("fileSizeFormatted", item.fileSizeFormatted)
+        put("fileSizeBytes", item.fileSizeBytes)
+        put("mimeType", item.mimeType)
+        put("localFilePath", item.localFilePath)
+        put("createdAt", item.createdAt)
+      }
+      array.put(obj)
+    }
+    return array.toString()
+  }
+
+  @TypeConverter
+  fun toAttachmentList(data: String?): List<com.example.data.model.AttachmentItem> {
+    if (data.isNullOrBlank()) return emptyList()
+    val list = mutableListOf<com.example.data.model.AttachmentItem>()
+    try {
+      val array = JSONArray(data)
+      for (i in 0 until array.length()) {
+        val obj = array.getJSONObject(i)
+        list.add(
+          com.example.data.model.AttachmentItem(
+            id = obj.getString("id"),
+            ownerId = obj.optString("ownerId", ""),
+            fileName = obj.getString("fileName"),
+            fileSizeFormatted = obj.optString("fileSizeFormatted", ""),
+            fileSizeBytes = obj.optLong("fileSizeBytes", 0L),
+            mimeType = obj.optString("mimeType", "*/*"),
+            localFilePath = obj.getString("localFilePath"),
+            createdAt = obj.optLong("createdAt", System.currentTimeMillis())
+          )
+        )
+      }
+    } catch (_: Exception) {
+      // fallback
+    }
+    return list
+  }
 }

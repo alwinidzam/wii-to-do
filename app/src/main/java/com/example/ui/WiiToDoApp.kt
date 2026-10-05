@@ -382,6 +382,23 @@ fun WiiToDoApp(
                       dueDate = "Today"
                     )
                   },
+                  onAddAttachmentToProject = { projId, uri ->
+                    coroutineScope.launch {
+                      val item = com.example.util.AttachmentStorageManager.saveAttachmentFromUri(
+                        context = context,
+                        uri = uri,
+                        ownerId = projId,
+                        ownerType = "project"
+                      )
+                      if (item != null) {
+                        viewModel.addAttachmentToProject(projId, item)
+                        snackbarHostState.showSnackbar("Berkas berhasil dilampirkan ke proyek")
+                      }
+                    }
+                  },
+                  onRemoveAttachmentFromProject = { projId, attachmentId ->
+                    viewModel.removeAttachmentFromProject(projId, attachmentId)
+                  },
                   userProfile = userProfile,
                   onStartFocus = { task ->
                     val effort = if (task.estimatedEffortMinutes > 0) task.estimatedEffortMinutes else 25
@@ -473,7 +490,24 @@ fun WiiToDoApp(
                     courseBadge = currentTask.courseName
                   )
                 },
-                onRescheduleClick = { scheduleBookingSlot = Pair("16:00", "16:30") }
+                onRescheduleClick = { scheduleBookingSlot = Pair("16:00", "16:30") },
+                onAddAttachment = { uri ->
+                  coroutineScope.launch {
+                    val item = com.example.util.AttachmentStorageManager.saveAttachmentFromUri(
+                      context = context,
+                      uri = uri,
+                      ownerId = currentTask.id,
+                      ownerType = "task"
+                    )
+                    if (item != null) {
+                      viewModel.addAttachmentToTask(currentTask.id, item)
+                      snackbarHostState.showSnackbar("Berkas berhasil dilampirkan ke tugas")
+                    }
+                  }
+                },
+                onRemoveAttachment = { attachmentId ->
+                  viewModel.removeAttachmentFromTask(currentTask.id, attachmentId)
+                }
               )
             } else {
               Box(
@@ -519,6 +553,7 @@ fun WiiToDoApp(
               session = session,
               subtasks = liveSubtasks,
               onToggleSubTask = { subId -> session.taskId?.let { tid -> viewModel.toggleSubTask(tid, subId) } },
+              onAddSubTask = { newTitle -> viewModel.addSubTaskToActiveFocus(newTitle) },
               onClose = { viewModel.navigateTo(AppDestination.Home) },
               onToggleTimer = { viewModel.toggleFocusTimerRunning() },
               onAddFiveMinutes = { viewModel.addFiveMinutesToFocus() },
@@ -714,12 +749,23 @@ fun WiiToDoApp(
           showAddTaskBottomSheet = false
           showAcademicCourseManager = true
         },
-        onTaskCreated = { title, desc, cat, proj, prio, dueTime, dueDate, courseName ->
-          viewModel.addTask(title, desc, cat, proj, prio, dueTime, dueDate, courseName)
+        onTaskCreated = { title, desc, cat, proj, prio, dueTime, dueDate, courseName, attachments ->
+          viewModel.addTask(
+            title = title,
+            description = desc,
+            category = cat,
+            project = proj,
+            priority = prio,
+            dueTime = dueTime,
+            dueDate = dueDate,
+            courseName = courseName,
+            attachments = attachments
+          )
           showAddTaskBottomSheet = false
           coroutineScope.launch {
             val targetLabel = if (!courseName.isNullOrBlank()) courseName else cat
-            snackbarHostState.showSnackbar("Task added to $targetLabel")
+            val attachMsg = if (attachments.isNotEmpty()) " (${attachments.size} file dilampirkan)" else ""
+            snackbarHostState.showSnackbar("Tugas ditambahkan ke $targetLabel$attachMsg")
           }
         }
       )

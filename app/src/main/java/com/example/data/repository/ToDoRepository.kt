@@ -5,6 +5,7 @@ import com.example.data.local.WiiDatabase
 import com.example.data.local.entity.ScheduleItemToEntity
 import com.example.data.local.entity.toEntity
 import com.example.data.local.entity.toModel
+import com.example.data.model.AttachmentItem
 import com.example.data.model.FocusSessionState
 import com.example.data.model.KanbanColumn
 import com.example.data.model.MilestoneTierLevel
@@ -622,7 +623,8 @@ class ToDoRepository private constructor(
     dueTime: String = "Today",
     dueDate: String = "Today (Oct 24)",
     estimatedEffort: Int = 30,
-    courseName: String? = null
+    courseName: String? = null,
+    attachments: List<AttachmentItem> = emptyList()
   ): String {
     val id = UUID.randomUUID().toString()
     val newTask = TaskItem(
@@ -639,6 +641,8 @@ class ToDoRepository private constructor(
       kanbanStatus = KanbanColumn.TO_DO,
       estimatedEffortMinutes = estimatedEffort,
       subtasks = emptyList(),
+      attachments = attachments,
+      attachmentCount = attachments.size,
       subtasksCompletedCount = 0,
       subtasksTotalCount = 0
     )
@@ -775,6 +779,81 @@ class ToDoRepository private constructor(
     }
   }
 
+  fun addSubTaskToActiveFocus(title: String) {
+    val current = _activeFocusSession.value ?: return
+    val taskId = current.taskId
+    if (taskId != null) {
+      addSubTask(taskId, title)
+      val updatedTask = _tasks.value.find { it.id == taskId }
+      val totalSubs = updatedTask?.subtasks?.size ?: (current.totalSubtasks + 1)
+      val doneSubs = updatedTask?.subtasks?.count { it.isCompleted } ?: 0
+      val subIndex = if (totalSubs > 0) (doneSubs + 1).coerceAtMost(totalSubs) else 0
+      _activeFocusSession.value = current.copy(
+        totalSubtasks = totalSubs,
+        currentSubtaskIndex = subIndex,
+        targetSubtask = if (current.targetSubtask.isBlank() || current.targetSubtask.startsWith("Fokus")) title else current.targetSubtask
+      )
+    }
+  }
+
+  fun addAttachmentToTask(taskId: String, attachment: AttachmentItem) {
+    _tasks.value = _tasks.value.map { task ->
+      if (task.id == taskId) {
+        val updated = task.copy(
+          attachments = task.attachments + attachment,
+          attachmentCount = (task.attachments.size + 1)
+        )
+        scope.launch { try { db?.taskDao()?.updateTask(updated.toEntity()) } catch (_: Exception) {} }
+        updated
+      } else {
+        task
+      }
+    }
+  }
+
+  fun removeAttachmentFromTask(taskId: String, attachmentId: String) {
+    _tasks.value = _tasks.value.map { task ->
+      if (task.id == taskId) {
+        val updated = task.copy(
+          attachments = task.attachments.filter { it.id != attachmentId },
+          attachmentCount = task.attachments.count { it.id != attachmentId }
+        )
+        scope.launch { try { db?.taskDao()?.updateTask(updated.toEntity()) } catch (_: Exception) {} }
+        updated
+      } else {
+        task
+      }
+    }
+  }
+
+  fun addAttachmentToProject(projectId: String, attachment: AttachmentItem) {
+    _projects.value = _projects.value.map { proj ->
+      if (proj.id == projectId) {
+        val updated = proj.copy(
+          attachments = proj.attachments + attachment
+        )
+        scope.launch { try { db?.projectDao()?.updateProject(updated.toEntity()) } catch (_: Exception) {} }
+        updated
+      } else {
+        proj
+      }
+    }
+  }
+
+  fun removeAttachmentFromProject(projectId: String, attachmentId: String) {
+    _projects.value = _projects.value.map { proj ->
+      if (proj.id == projectId) {
+        val updated = proj.copy(
+          attachments = proj.attachments.filter { it.id != attachmentId }
+        )
+        scope.launch { try { db?.projectDao()?.updateProject(updated.toEntity()) } catch (_: Exception) {} }
+        updated
+      } else {
+        proj
+      }
+    }
+  }
+
   fun updateKanbanStatus(taskId: String, newColumn: KanbanColumn) {
     _tasks.value = _tasks.value.map { task ->
       if (task.id == taskId) {
@@ -836,7 +915,12 @@ class ToDoRepository private constructor(
     val target = targetSubtask ?: firstIncomplete ?: "Fokus pengerjaan $taskTitle"
     val subIndex = if (totalSubs > 0) (doneSubs + 1).coerceAtMost(totalSubs) else 0
 
-    val durationSecs = if (mode == com.example.data.model.FocusTimerMode.FLOW_OPEN) 0 else minutes * 60
+    val actualMinutes = when (mode) {
+      com.example.data.model.FocusTimerMode.POMODORO_25 -> 25
+      com.example.data.model.FocusTimerMode.SPRINT_50 -> 50
+      com.example.data.model.FocusTimerMode.FLOW_OPEN -> 0
+    }
+    val durationSecs = if (mode == com.example.data.model.FocusTimerMode.FLOW_OPEN) 0 else actualMinutes * 60
     val now = System.currentTimeMillis()
 
     _activeFocusSession.value = FocusSessionState(
@@ -932,11 +1016,14 @@ class ToDoRepository private constructor(
   fun switchFocusTimerMode(newMode: com.example.data.model.FocusTimerMode) {
     val current = _activeFocusSession.value ?: return
     val totalSecs = if (newMode == com.example.data.model.FocusTimerMode.FLOW_OPEN) 0 else newMode.defaultMinutes * 60
+    val now = System.currentTimeMillis()
     _activeFocusSession.value = current.copy(
       mode = newMode,
       totalSeconds = totalSecs,
       remainingSeconds = totalSecs,
-      isRunning = false
+      isRunning = false,
+      startTimestampMillis = now,
+      lastTickTimestampMillis = now
     )
   }
 

@@ -92,6 +92,8 @@ fun TaskDetailScreen(
   isAiGenerating: Boolean = false,
   onStartFocusClick: () -> Unit,
   onRescheduleClick: () -> Unit,
+  onAddAttachment: ((android.net.Uri) -> Unit)? = null,
+  onRemoveAttachment: ((String) -> Unit)? = null,
   modifier: Modifier = Modifier
 ) {
   val haptic = LocalHapticFeedback.current
@@ -467,63 +469,27 @@ fun TaskDetailScreen(
             lineHeight = 18.sp
           )
 
-          Spacer(modifier = Modifier.height(14.dp))
+        }
+      }
+    }
 
-          // External References
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-          ) {
-            Surface(
-              shape = RoundedCornerShape(8.dp),
-              color = BrandPillBg,
-              border = BorderStroke(1.dp, BrandBorderLight)
-            ) {
-              Row(
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-              ) {
-                Icon(
-                  imageVector = Icons.Default.Link,
-                  contentDescription = null,
-                  tint = BrandCharcoal,
-                  modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                  text = "Figma Design Token Matrix",
-                  fontSize = 11.sp,
-                  fontWeight = FontWeight.Medium,
-                  color = BrandCharcoal
-                )
-              }
-            }
-
-            Surface(
-              shape = RoundedCornerShape(8.dp),
-              color = BrandPillBg,
-              border = BorderStroke(1.dp, BrandBorderLight)
-            ) {
-              Row(
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-              ) {
-                Icon(
-                  imageVector = Icons.Default.OpenInNew,
-                  contentDescription = null,
-                  tint = BrandCharcoal,
-                  modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                  text = "WCAG 2.1 Contrast Tool",
-                  fontSize = 11.sp,
-                  fontWeight = FontWeight.Medium,
-                  color = BrandCharcoal
-                )
-              }
-            }
-          }
+    // 6. Task Local File Attachments (matching Image 2)
+    item {
+      Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, BrandBorder)
+      ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+          com.example.ui.components.FileAttachmentSection(
+            attachments = task.attachments,
+            onAddAttachmentUri = { uri -> onAddAttachment?.invoke(uri) },
+            onRemoveAttachment = { item -> onRemoveAttachment?.invoke(item.id) },
+            title = "Berkas & Lampiran Tugas",
+            subtitle = "Simpan modul, materi, PDF, dokumen, atau zip penunjang tugas",
+            canAttach = true
+          )
         }
       }
     }

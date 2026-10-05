@@ -43,11 +43,19 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.School
+import com.example.data.model.AttachmentItem
+import com.example.ui.components.FileAttachmentSection
+import com.example.util.AttachmentStorageManager
+import com.example.ui.theme.BrandBorder
+import com.example.ui.theme.BrandOlive
+import com.example.ui.theme.BrandOliveBg
+import com.example.ui.theme.BrandOliveBorder
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -121,7 +129,8 @@ fun AddTaskBottomSheet(
     priority: TaskPriority,
     dueTime: String,
     dueDate: String,
-    courseName: String?
+    courseName: String?,
+    attachments: List<AttachmentItem>
   ) -> Unit,
   modifier: Modifier = Modifier,
   courses: List<AcademicCourse> = AcademicCourseDefaults.PRESET_COURSES,
@@ -156,9 +165,14 @@ fun AddTaskBottomSheet(
   var isTomorrow by remember { mutableStateOf(false) }
   var selectedTimeStr by remember { mutableStateOf("23:59") }
 
+  // Attachment state (stores local files attached during creation)
+  var attachedFiles by remember { mutableStateOf<List<AttachmentItem>>(emptyList()) }
+  val tempTaskId = remember { java.util.UUID.randomUUID().toString() }
+
   // Drawers expansion state (collapsible to avoid visual clutter)
   var isDeadlineDrawerOpen by remember { mutableStateOf(false) }
   var isCourseDrawerOpen by remember { mutableStateOf(false) }
+  var isAttachmentDrawerOpen by remember { mutableStateOf(false) }
 
   val focusRequester = remember { FocusRequester() }
   val isCollege = categories[selectedCategoryIndex].equals("College", ignoreCase = true)
@@ -468,6 +482,43 @@ fun AddTaskBottomSheet(
             )
           }
         }
+
+        // Pill D: Lampirkan Berkas Pill
+        val isAttachmentActive = isAttachmentDrawerOpen || attachedFiles.isNotEmpty()
+        Surface(
+          shape = RoundedCornerShape(8.dp),
+          color = if (isAttachmentDrawerOpen) BrandCharcoal else if (attachedFiles.isNotEmpty()) BrandOliveBg else Color.White,
+          border = BorderStroke(0.75.dp, if (isAttachmentDrawerOpen) BrandCharcoal else if (attachedFiles.isNotEmpty()) BrandOliveBorder else LinearBorderHairline),
+          modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable {
+              HapticEngine.selection(context, haptic)
+              isAttachmentDrawerOpen = !isAttachmentDrawerOpen
+              if (isAttachmentDrawerOpen) {
+                isDeadlineDrawerOpen = false
+                isCourseDrawerOpen = false
+              }
+            }
+        ) {
+          Row(
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+          ) {
+            Icon(
+              imageVector = Icons.Default.AttachFile,
+              contentDescription = null,
+              tint = if (isAttachmentDrawerOpen) Color.White else if (attachedFiles.isNotEmpty()) BrandOlive else BrandSecondary,
+              modifier = Modifier.size(13.dp)
+            )
+            Text(
+              text = if (attachedFiles.isEmpty()) "Lampirkan File" else "${attachedFiles.size} Berkas",
+              fontSize = 11.5.sp,
+              fontWeight = FontWeight.Medium,
+              color = if (isAttachmentDrawerOpen) Color.White else if (attachedFiles.isNotEmpty()) BrandOlive else BrandCharcoal
+            )
+          }
+        }
       }
 
       // 4. Collapsible Contextual Drawers
@@ -678,6 +729,46 @@ fun AddTaskBottomSheet(
         }
       }
 
+      // 4C: File Attachment Drawer (matching Image 2)
+      AnimatedVisibility(
+        visible = isAttachmentDrawerOpen || attachedFiles.isNotEmpty(),
+        enter = expandVertically() + fadeIn(),
+        exit = shrinkVertically() + fadeOut()
+      ) {
+        Surface(
+          modifier = Modifier.fillMaxWidth(),
+          shape = RoundedCornerShape(14.dp),
+          color = Color(0xFFFAFAFA),
+          border = BorderStroke(1.dp, BrandBorder)
+        ) {
+          Column(modifier = Modifier.padding(12.dp)) {
+            FileAttachmentSection(
+              attachments = attachedFiles,
+              onAddAttachmentUri = { uri ->
+                coroutineScope.launch {
+                  val item = AttachmentStorageManager.saveAttachmentFromUri(
+                    context = context,
+                    uri = uri,
+                    ownerId = tempTaskId,
+                    ownerType = "task"
+                  )
+                  if (item != null) {
+                    attachedFiles = attachedFiles + item
+                  }
+                }
+              },
+              onRemoveAttachment = { item ->
+                AttachmentStorageManager.deleteLocalAttachmentFile(item.localFilePath)
+                attachedFiles = attachedFiles.filter { it.id != item.id }
+              },
+              title = "Lampiran Tugas (Disimpan Lokal)",
+              subtitle = "Unggah berkas tugas, materi kuliah, modul, atau PDF",
+              canAttach = true
+            )
+          }
+        }
+      }
+
       Spacer(modifier = Modifier.height(2.dp))
 
       // 5. Bottom Action Row: Gesture Dismissal Hint + Create Task Button
@@ -715,7 +806,8 @@ fun AddTaskBottomSheet(
                 priorities[selectedPriorityIndex],
                 selectedTimeStr,
                 "$selectedDateLabel • $selectedTimeStr",
-                if (isCollege) selectedCourseName else null
+                if (isCollege) selectedCourseName else null,
+                attachedFiles
               )
             }
           },

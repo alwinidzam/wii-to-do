@@ -25,7 +25,7 @@ import com.example.data.local.entity.UserProfileEntity
     UserProfileEntity::class,
     UserAccountEntity::class
   ],
-  version = 3,
+  version = 4,
   exportSchema = false
 )
 @TypeConverters(RoomTypeConverters::class)

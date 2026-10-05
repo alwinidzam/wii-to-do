@@ -122,6 +122,8 @@ fun ProjectsScreen(
   onToggleTaskComplete: (String) -> Unit = {},
   onAddProject: (String, String, String) -> Unit = { _, _, _ -> },
   onAddTaskToProject: (String, String, String) -> Unit = { _, _, _ -> },
+  onAddAttachmentToProject: ((String, android.net.Uri) -> Unit)? = null,
+  onRemoveAttachmentFromProject: ((String, String) -> Unit)? = null,
   userProfile: com.example.data.model.UserProfile? = null,
   onStartFocus: ((TaskItem) -> Unit)? = null
 ) {
@@ -397,7 +399,13 @@ fun ProjectsScreen(
         onAddTask = { title ->
           onAddTaskToProject(title, currentProject.title, currentProject.category)
         },
-        onStartFocus = onStartFocus
+        onStartFocus = onStartFocus,
+        onAddAttachment = { uri ->
+          onAddAttachmentToProject?.invoke(currentProject.id, uri)
+        },
+        onRemoveAttachment = { attachmentId ->
+          onRemoveAttachmentFromProject?.invoke(currentProject.id, attachmentId)
+        }
       )
     }
   }
@@ -610,7 +618,9 @@ private fun ProjectDetailView(
   onToggleTask: (String) -> Unit,
   onUpdateKanbanStatus: (String, KanbanColumn) -> Unit,
   onAddTask: (String) -> Unit,
-  onStartFocus: ((TaskItem) -> Unit)? = null
+  onStartFocus: ((TaskItem) -> Unit)? = null,
+  onAddAttachment: (android.net.Uri) -> Unit = {},
+  onRemoveAttachment: (String) -> Unit = {}
 ) {
   val context = LocalContext.current
   val haptic = LocalHapticFeedback.current
@@ -741,6 +751,27 @@ private fun ProjectDetailView(
               .clip(RoundedCornerShape(2.5.dp)),
             color = BrandOlive,
             trackColor = BrandCanvas
+          )
+        }
+      }
+    }
+
+    // 2. Project Berkas & Lampiran (matching Image 2)
+    item {
+      Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, BrandBorder)
+      ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+          com.example.ui.components.FileAttachmentSection(
+            attachments = project.attachments,
+            onAddAttachmentUri = { uri -> onAddAttachment(uri) },
+            onRemoveAttachment = { item -> onRemoveAttachment(item.id) },
+            title = "Berkas & Materi Proyek",
+            subtitle = "Lampirkan file tugas, dokumen, video, atau arsip di penyimpanan lokal",
+            canAttach = true
           )
         }
       }
