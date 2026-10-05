@@ -614,6 +614,7 @@ fun WiiToDoApp(
     if (activeFocus != null && !activeFocus!!.isDismissed && destination !is AppDestination.ActiveFocus && destination !is AppDestination.FocusSummary) {
       FloatingFocusMiniPlayer(
         session = activeFocus!!,
+        tasks = tasks,
         onExpandClick = { viewModel.navigateTo(AppDestination.ActiveFocus) },
         onToggleTimer = { viewModel.toggleFocusTimerRunning() },
         onQuickComplete = { viewModel.quickCompleteFocusTask() },

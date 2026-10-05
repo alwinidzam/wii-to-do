@@ -70,7 +70,7 @@ import java.util.Locale
 @Composable
 fun FloatingFocusMiniPlayer(
   session: FocusSessionState?,
-  tasks: List<TaskItem>,
+  tasks: List<TaskItem> = emptyList(),
   onExpandClick: () -> Unit,
   onToggleTimer: () -> Unit,
   onQuickComplete: () -> Unit,
