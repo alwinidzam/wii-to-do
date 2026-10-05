@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -20,8 +21,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DeleteOutline
@@ -29,6 +32,7 @@ import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -41,17 +45,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.components.PIXEL_AVATAR_LIST
+import com.example.ui.components.PixelArtAvatar
+import com.example.ui.components.UserAvatarDisplay
 import com.example.ui.theme.AppleSystemBlue
+import com.example.ui.theme.AppleSystemGreen
 import com.example.ui.theme.BrandBorder
 import com.example.ui.theme.BrandBorderLight
 import com.example.ui.theme.BrandCharcoal
@@ -61,32 +71,18 @@ import com.example.ui.theme.BrandOliveBorder
 import com.example.ui.theme.BrandPillBg
 import com.example.ui.theme.BrandSecondary
 import com.example.ui.theme.BrandTerracotta
+import com.example.util.AvatarStorageManager
+import kotlinx.coroutines.launch
 
-data class AvatarPreset(
-  val id: String,
-  val emoji: String,
-  val label: String,
-  val colorHex: Long
-)
-
-val PRESET_AVATARS = listOf(
-  AvatarPreset("architect_1", "🏛️", "Architect", 0xFF1E293B),
-  AvatarPreset("drafter_2", "📐", "Drafter", 0xFF0F766E),
-  AvatarPreset("flow_3", "⚡", "Flow", 0xFFD97706),
-  AvatarPreset("scholar_4", "🌿", "Scholar", 0xFF059669),
-  AvatarPreset("researcher_5", "🔬", "Research", 0xFF2563EB),
-  AvatarPreset("master_6", "💎", "Master", 0xFF7C3AED)
-)
-
-val MONOGRAM_PALETTE = listOf(
-  0xFF1E293B, // Charcoal Navy
-  0xFF0F766E, // Deep Teal
-  0xFF2563EB, // Electric Cobalt
-  0xFF059669, // Emerald Green
-  0xFFD97706, // Warm Amber
-  0xFF7C3AED, // Royal Violet
-  0xFFC026D3, // Magenta
-  0xFFE11D48  // Crimson Rose
+val AVATAR_PALETTE = listOf(
+  0xFF0F172A, // Obsidian Navy
+  0xFF064E3B, // Emerald Forest
+  0xFF2E1065, // Cosmic Violet
+  0xFF1E293B, // Slate Dark
+  0xFF1C1917, // Charcoal Warm
+  0xFF1E1B4B, // Deep Indigo
+  0xFF0B1329, // Midnight Shadow
+  0xFF831843  // Crimson Rose
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,17 +95,30 @@ fun AvatarPickerBottomSheet(
   onDismiss: () -> Unit,
   onSaveAvatar: (uri: String?, presetId: String?, colorHex: Long) -> Unit
 ) {
+  val context = LocalContext.current
+  val coroutineScope = rememberCoroutineScope()
   val haptic = LocalHapticFeedback.current
+  val scrollState = rememberScrollState()
+
   var selectedUri by remember { mutableStateOf(currentAvatarUri) }
-  var selectedPresetId by remember { mutableStateOf(currentPresetId ?: "architect_1") }
+  var selectedPresetId by remember { mutableStateOf(currentPresetId ?: "pixel_hacker") }
   var selectedColorHex by remember { mutableStateOf(currentColorHex) }
+  var isSavingPhoto by remember { mutableStateOf(false) }
 
   val photoPickerLauncher = rememberLauncherForActivityResult(
     contract = ActivityResultContracts.GetContent()
   ) { uri: Uri? ->
     if (uri != null) {
-      selectedUri = uri.toString()
-      haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+      isSavingPhoto = true
+      coroutineScope.launch {
+        val savedPath = AvatarStorageManager.saveImageToInternalStorage(context, uri)
+        isSavingPhoto = false
+        if (savedPath != null) {
+          selectedUri = savedPath
+          selectedPresetId = ""
+          haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        }
+      }
     }
   }
 
@@ -130,6 +139,7 @@ fun AvatarPickerBottomSheet(
     Column(
       modifier = Modifier
         .fillMaxWidth()
+        .verticalScroll(scrollState)
         .padding(horizontal = 24.dp, vertical = 12.dp)
     ) {
       // Header
@@ -140,7 +150,7 @@ fun AvatarPickerBottomSheet(
       ) {
         Column {
           Text(
-            text = "FOTO PROFIL & AVATAR",
+            text = "FOTO PROFIL & AVATAR 8-BIT",
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
             color = BrandOlive,
@@ -154,25 +164,33 @@ fun AvatarPickerBottomSheet(
           )
         }
 
-        // Live Preview Avatar
-        Surface(
-          modifier = Modifier.size(54.dp),
-          shape = CircleShape,
-          color = Color(selectedColorHex),
-          border = BorderStroke(2.dp, Color.White),
-          shadowElevation = 3.dp
+        // Live Real-Time Preview
+        Box(
+          modifier = Modifier.size(56.dp),
+          contentAlignment = Alignment.Center
         ) {
-          Box(contentAlignment = Alignment.Center) {
-            val preset = PRESET_AVATARS.find { it.id == selectedPresetId }
-            Text(
-              text = if (selectedUri != null) "📷" else preset?.emoji ?: initials,
-              fontSize = 22.sp
+          if (isSavingPhoto) {
+            CircularProgressIndicator(
+              modifier = Modifier.size(28.dp),
+              color = BrandOlive,
+              strokeWidth = 2.5.dp
+            )
+          } else {
+            UserAvatarDisplay(
+              avatarUri = selectedUri,
+              presetId = if (selectedUri.isNullOrBlank()) selectedPresetId else null,
+              colorHex = selectedColorHex,
+              initials = initials,
+              modifier = Modifier.size(56.dp),
+              borderWidth = 2.dp,
+              borderColor = Color.White,
+              fontSize = 20.sp
             )
           }
         }
       }
 
-      Spacer(modifier = Modifier.height(20.dp))
+      Spacer(modifier = Modifier.height(18.dp))
 
       // Section 1: Gallery / Device Upload
       Text(
@@ -200,59 +218,100 @@ fun AvatarPickerBottomSheet(
           modifier = Modifier.padding(14.dp),
           verticalAlignment = Alignment.CenterVertically
         ) {
-          Surface(
-            modifier = Modifier.size(36.dp),
-            shape = CircleShape,
-            color = Color.White,
-            border = BorderStroke(1.dp, BrandBorderLight)
-          ) {
-            Box(contentAlignment = Alignment.Center) {
-              Icon(
-                imageVector = Icons.Default.PhotoLibrary,
-                contentDescription = null,
-                tint = AppleSystemBlue,
-                modifier = Modifier.size(18.dp)
-              )
+          if (!selectedUri.isNullOrBlank()) {
+            UserAvatarDisplay(
+              avatarUri = selectedUri,
+              presetId = null,
+              colorHex = null,
+              initials = initials,
+              modifier = Modifier.size(38.dp),
+              borderWidth = 1.dp,
+              borderColor = AppleSystemGreen
+            )
+          } else {
+            Surface(
+              modifier = Modifier.size(38.dp),
+              shape = CircleShape,
+              color = Color.White,
+              border = BorderStroke(1.dp, BrandBorderLight)
+            ) {
+              Box(contentAlignment = Alignment.Center) {
+                Icon(
+                  imageVector = Icons.Default.PhotoLibrary,
+                  contentDescription = null,
+                  tint = BrandCharcoal,
+                  modifier = Modifier.size(20.dp)
+                )
+              }
             }
           }
+
           Spacer(modifier = Modifier.width(12.dp))
+
           Column(modifier = Modifier.weight(1f)) {
             Text(
-              text = if (selectedUri != null) "Ganti Foto Galeri Terpilih" else "Pilih Foto dari Galeri",
-              fontSize = 13.sp,
+              text = if (!selectedUri.isNullOrBlank()) "Ganti Foto Galeri Terpilih" else "Pilih Foto dari Galeri / Kamera",
+              fontSize = 13.5.sp,
               fontWeight = FontWeight.SemiBold,
               color = BrandCharcoal
             )
             Text(
-              text = if (selectedUri != null) "Foto tersimpan di perangkat" else "Format JPG, PNG, atau WEBP",
+              text = if (!selectedUri.isNullOrBlank()) "Foto tersimpan di memori lokal internal" else "Format JPG / PNG berkualitas tinggi",
               fontSize = 11.sp,
               color = BrandSecondary
             )
           }
-          if (selectedUri != null) {
-            Surface(
-              shape = CircleShape,
-              color = BrandOliveBg,
-              border = BorderStroke(1.dp, BrandOliveBorder)
-            ) {
-              Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = null,
-                tint = BrandOlive,
-                modifier = Modifier.size(16.dp).padding(2.dp)
-              )
-            }
+
+          if (!selectedUri.isNullOrBlank()) {
+            Icon(
+              imageVector = Icons.Default.Check,
+              contentDescription = "Foto Terpilih",
+              tint = AppleSystemGreen,
+              modifier = Modifier.size(18.dp)
+            )
           }
+        }
+      }
+
+      // Option to clear uploaded photo and revert to 8-bit avatar
+      if (!selectedUri.isNullOrBlank()) {
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+              haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+              AvatarStorageManager.deleteInternalAvatar(context)
+              selectedUri = null
+              selectedPresetId = "pixel_hacker"
+            }
+            .padding(vertical = 4.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.Center
+        ) {
+          Icon(
+            imageVector = Icons.Default.DeleteOutline,
+            contentDescription = null,
+            tint = BrandTerracotta,
+            modifier = Modifier.size(14.dp)
+          )
+          Spacer(modifier = Modifier.width(4.dp))
+          Text(
+            text = "Hapus Foto Galeri & Gunakan Template 8-Bit",
+            fontSize = 11.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = BrandTerracotta
+          )
         }
       }
 
       Spacer(modifier = Modifier.height(18.dp))
       HorizontalDivider(color = BrandBorderLight, thickness = 1.dp)
-      Spacer(modifier = Modifier.height(18.dp))
+      Spacer(modifier = Modifier.height(14.dp))
 
-      // Section 2: Curated Architectural Presets
+      // Section 2: 8-Bit Pixel Art Avatar Archetypes
       Text(
-        text = "PRESET ARSITEK MINIMALIS",
+        text = "TEMPLATE AVATAR 8-BIT RETRO",
         fontSize = 11.sp,
         fontWeight = FontWeight.Bold,
         color = BrandSecondary,
@@ -264,32 +323,41 @@ fun AvatarPickerBottomSheet(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.fillMaxWidth()
       ) {
-        items(PRESET_AVATARS) { preset ->
-          val isSelected = selectedUri == null && selectedPresetId == preset.id
+        items(PIXEL_AVATAR_LIST) { avatar ->
+          val isSelected = selectedUri.isNullOrBlank() && selectedPresetId == avatar.id
           Surface(
             modifier = Modifier
+              .width(76.dp)
               .clip(RoundedCornerShape(14.dp))
               .clickable {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 selectedUri = null
-                selectedPresetId = preset.id
-                selectedColorHex = preset.colorHex
+                selectedPresetId = avatar.id
+                selectedColorHex = avatar.defaultBgColorHex
               },
             shape = RoundedCornerShape(14.dp),
-            color = if (isSelected) BrandPillBg else Color.White,
-            border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, if (isSelected) BrandCharcoal else BrandBorder)
+            color = if (isSelected) BrandOliveBg else Color.White,
+            border = BorderStroke(
+              if (isSelected) 2.dp else 1.dp,
+              if (isSelected) BrandOlive else BrandBorder
+            )
           ) {
             Column(
-              modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+              modifier = Modifier.padding(horizontal = 6.dp, vertical = 10.dp),
               horizontalAlignment = Alignment.CenterHorizontally
             ) {
-              Text(text = preset.emoji, fontSize = 24.sp)
-              Spacer(modifier = Modifier.height(4.dp))
+              PixelArtAvatar(
+                avatar = avatar,
+                modifier = Modifier.size(44.dp),
+                backgroundColor = Color(avatar.defaultBgColorHex)
+              )
+              Spacer(modifier = Modifier.height(6.dp))
               Text(
-                text = preset.label,
-                fontSize = 11.sp,
+                text = avatar.name,
+                fontSize = 10.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = BrandCharcoal
+                color = if (isSelected) BrandOlive else BrandCharcoal,
+                maxLines = 1
               )
             }
           }
@@ -297,12 +365,10 @@ fun AvatarPickerBottomSheet(
       }
 
       Spacer(modifier = Modifier.height(18.dp))
-      HorizontalDivider(color = BrandBorderLight, thickness = 1.dp)
-      Spacer(modifier = Modifier.height(18.dp))
 
-      // Section 3: Monogram Palette Customizer
+      // Section 3: Background Monogram Palette
       Text(
-        text = "WARNA MONOGRAM INISIAL",
+        text = "WARNA LATAR AVATAR",
         fontSize = 11.sp,
         fontWeight = FontWeight.Bold,
         color = BrandSecondary,
@@ -310,24 +376,24 @@ fun AvatarPickerBottomSheet(
       )
       Spacer(modifier = Modifier.height(10.dp))
 
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
+      LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth()
       ) {
-        MONOGRAM_PALETTE.forEach { colorVal ->
-          val isSelected = selectedColorHex == colorVal
+        items(AVATAR_PALETTE) { hex ->
+          val isSelected = selectedColorHex == hex
           Box(
             modifier = Modifier
-              .size(34.dp)
+              .size(36.dp)
               .clip(CircleShape)
-              .background(Color(colorVal))
+              .background(Color(hex))
               .clickable {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                selectedColorHex = colorVal
+                selectedColorHex = hex
               }
               .border(
                 width = if (isSelected) 2.5.dp else 0.dp,
-                color = if (isSelected) BrandCharcoal else Color.Transparent,
+                color = if (isSelected) Color.White else Color.Transparent,
                 shape = CircleShape
               ),
             contentAlignment = Alignment.Center
@@ -335,7 +401,7 @@ fun AvatarPickerBottomSheet(
             if (isSelected) {
               Icon(
                 imageVector = Icons.Default.Check,
-                contentDescription = null,
+                contentDescription = "Selected Color",
                 tint = Color.White,
                 modifier = Modifier.size(16.dp)
               )
@@ -344,38 +410,9 @@ fun AvatarPickerBottomSheet(
         }
       }
 
-      // Option to reset photo
-      if (selectedUri != null) {
-        Spacer(modifier = Modifier.height(14.dp))
-        Row(
-          modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-              selectedUri = null
-              haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            },
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.Center
-        ) {
-          Icon(
-            imageVector = Icons.Default.DeleteOutline,
-            contentDescription = null,
-            tint = BrandTerracotta,
-            modifier = Modifier.size(16.dp)
-          )
-          Spacer(modifier = Modifier.width(6.dp))
-          Text(
-            text = "Hapus Foto Galeri & Gunakan Preset",
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = BrandTerracotta
-          )
-        }
-      }
-
       Spacer(modifier = Modifier.height(24.dp))
 
-      // Bottom Action Buttons
+      // Action Buttons
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -384,9 +421,16 @@ fun AvatarPickerBottomSheet(
           onClick = onDismiss,
           shape = RoundedCornerShape(12.dp),
           border = BorderStroke(1.dp, BrandBorder),
-          modifier = Modifier.weight(1f).height(48.dp)
+          modifier = Modifier
+            .weight(1f)
+            .height(48.dp)
         ) {
-          Text("Batal", color = BrandCharcoal, fontWeight = FontWeight.SemiBold)
+          Text(
+            text = "Batal",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = BrandCharcoal
+          )
         }
 
         Button(
@@ -397,13 +441,20 @@ fun AvatarPickerBottomSheet(
           },
           shape = RoundedCornerShape(12.dp),
           colors = ButtonDefaults.buttonColors(containerColor = BrandCharcoal),
-          modifier = Modifier.weight(1f).height(48.dp)
+          modifier = Modifier
+            .weight(1f)
+            .height(48.dp)
         ) {
-          Text("Terapkan Avatar", color = Color.White, fontWeight = FontWeight.Bold)
+          Text(
+            text = "Terapkan Avatar",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+          )
         }
       }
 
-      Spacer(modifier = Modifier.height(24.dp))
+      Spacer(modifier = Modifier.height(20.dp))
     }
   }
 }

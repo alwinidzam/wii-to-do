@@ -135,8 +135,8 @@ fun FloatingFocusMiniPlayer(
           scaleX = scale
           scaleY = scale
         }
-        .shadow(16.dp, RoundedCornerShape(20.dp), spotColor = Color.Black.copy(alpha = 0.18f))
-        .clip(RoundedCornerShape(20.dp))
+        .shadow(10.dp, RoundedCornerShape(22.dp), spotColor = Color.Black.copy(alpha = 0.14f))
+        .clip(RoundedCornerShape(22.dp))
         .clickable(
           interactionSource = interactionSource,
           indication = null
@@ -144,12 +144,12 @@ fun FloatingFocusMiniPlayer(
           haptic.performHapticFeedback(HapticFeedbackType.LongPress)
           onExpandClick()
         },
-      shape = RoundedCornerShape(20.dp),
+      shape = RoundedCornerShape(22.dp),
       color = Color.White,
-      border = BorderStroke(1.25.dp, BrandBorder)
+      border = BorderStroke(1.dp, BrandBorder)
     ) {
       Row(
-        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
       ) {
         // 1. Progress Dial + Monospace Countdown

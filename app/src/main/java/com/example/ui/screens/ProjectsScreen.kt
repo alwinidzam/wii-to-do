@@ -122,18 +122,32 @@ fun ProjectsScreen(
   onToggleTaskComplete: (String) -> Unit = {},
   onAddProject: (String, String, String) -> Unit = { _, _, _ -> },
   onAddTaskToProject: (String, String, String) -> Unit = { _, _, _ -> },
-  userProfile: com.example.data.model.UserProfile? = null
+  userProfile: com.example.data.model.UserProfile? = null,
+  onStartFocus: ((TaskItem) -> Unit)? = null
 ) {
   val context = LocalContext.current
   val haptic = LocalHapticFeedback.current
   var selectedCategory by remember { mutableStateOf("All") }
+  var selectedStatusFilter by remember { mutableStateOf("All") }
   var selectedProjectId by remember { mutableStateOf<String?>(null) }
   var showNewProjectDialog by remember { mutableStateOf(false) }
 
   val currentProject = projects.find { it.id == selectedProjectId }
 
-  val filteredProjects = projects.filter {
-    selectedCategory == "All" || it.category.equals(selectedCategory, ignoreCase = true)
+  val filteredProjects = projects.filter { proj ->
+    val catMatch = (selectedCategory == "All" || proj.category.equals(selectedCategory, ignoreCase = true))
+    val projTasks = tasks.filter {
+      it.project.equals(proj.title, ignoreCase = true) || it.category.equals(proj.category, ignoreCase = true)
+    }
+    val total = if (projTasks.isNotEmpty()) projTasks.size else proj.totalTasks
+    val done = if (projTasks.isNotEmpty()) projTasks.count { it.isCompleted } else proj.completedTasks
+    val isDone = total > 0 && done >= total
+    val statusMatch = when (selectedStatusFilter) {
+      "Active" -> !isDone
+      "Completed" -> isDone
+      else -> true
+    }
+    catMatch && statusMatch
   }
 
   val totalProjectTasks = tasks.count { task ->
@@ -252,11 +266,12 @@ fun ProjectsScreen(
       ) {
         // Category Filter Chips
         item {
-          Row(
+          LazyRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
           ) {
-            listOf("All" to "Semua", "College" to "🎓 Kuliah", "Work" to "💼 Pekerjaan", "Personal" to "👤 Pribadi").forEach { (catKey, label) ->
+            val categories = listOf("All" to "Semua Kategori", "College" to "🎓 Kuliah", "Work" to "💼 Pekerjaan", "Personal" to "👤 Pribadi")
+            items(categories) { (catKey, label) ->
               val isSelected = (selectedCategory == catKey)
               Surface(
                 modifier = Modifier
@@ -275,6 +290,37 @@ fun ProjectsScreen(
                   fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                   color = if (isSelected) Color.White else BrandSecondary,
                   modifier = Modifier.padding(horizontal = 13.dp, vertical = 6.dp)
+                )
+              }
+            }
+          }
+        }
+
+        // Status Segmented Filter (Semua, Aktif, Selesai)
+        item {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+          ) {
+            listOf("All" to "Semua Proyek", "Active" to "⚡ Berjalan", "Completed" to "✓ Selesai").forEach { (statusKey, label) ->
+              val isSelected = (selectedStatusFilter == statusKey)
+              Surface(
+                modifier = Modifier
+                  .clip(RoundedCornerShape(10.dp))
+                  .clickable {
+                    HapticEngine.selection(context, haptic)
+                    selectedStatusFilter = statusKey
+                  },
+                shape = RoundedCornerShape(10.dp),
+                color = if (isSelected) BrandOliveBg else Color.White,
+                border = BorderStroke(1.dp, if (isSelected) BrandOliveBorder else BrandBorderLight)
+              ) {
+                Text(
+                  text = label,
+                  fontSize = 11.sp,
+                  fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                  color = if (isSelected) BrandOlive else BrandSecondary,
+                  modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
                 )
               }
             }
@@ -350,7 +396,8 @@ fun ProjectsScreen(
         onUpdateKanbanStatus = onUpdateKanbanStatus,
         onAddTask = { title ->
           onAddTaskToProject(title, currentProject.title, currentProject.category)
-        }
+        },
+        onStartFocus = onStartFocus
       )
     }
   }
@@ -562,7 +609,8 @@ private fun ProjectDetailView(
   onTaskClick: (String) -> Unit,
   onToggleTask: (String) -> Unit,
   onUpdateKanbanStatus: (String, KanbanColumn) -> Unit,
-  onAddTask: (String) -> Unit
+  onAddTask: (String) -> Unit,
+  onStartFocus: ((TaskItem) -> Unit)? = null
 ) {
   val context = LocalContext.current
   val haptic = LocalHapticFeedback.current
@@ -698,6 +746,44 @@ private fun ProjectDetailView(
       }
     }
 
+    // Direct Focus Tip Banner
+    item {
+      Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = BrandOliveBg,
+        border = BorderStroke(1.dp, BrandOliveBorder)
+      ) {
+        Row(
+          modifier = Modifier.padding(12.dp),
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+          Box(
+            modifier = Modifier
+              .size(28.dp)
+              .background(BrandOlive.copy(alpha = 0.15f), CircleShape),
+            contentAlignment = Alignment.Center
+          ) {
+            Text("⚡", fontSize = 13.sp)
+          }
+          Column(modifier = Modifier.weight(1f)) {
+            Text(
+              text = "Alur Eksekusi Cepat",
+              fontSize = 12.sp,
+              fontWeight = FontWeight.Bold,
+              color = BrandOlive
+            )
+            Text(
+              text = "Tap '⚡ Fokus' pada tugas di bawah untuk langsung menyalakan floating focus timer.",
+              fontSize = 11.sp,
+              color = BrandCharcoal.copy(alpha = 0.85f)
+            )
+          }
+        }
+      }
+    }
+
     // 2. Fast Inline Task Adder
     item {
       Surface(
@@ -760,7 +846,8 @@ private fun ProjectDetailView(
           task = task,
           onToggle = { onToggleTask(task.id) },
           onClick = { onTaskClick(task.id) },
-          onSetStatus = { col -> onUpdateKanbanStatus(task.id, col) }
+          onSetStatus = { col -> onUpdateKanbanStatus(task.id, col) },
+          onStartFocus = { onStartFocus?.invoke(task) }
         )
       }
     }
@@ -788,7 +875,8 @@ private fun ProjectDetailView(
           task = task,
           onToggle = { onToggleTask(task.id) },
           onClick = { onTaskClick(task.id) },
-          onSetStatus = { col -> onUpdateKanbanStatus(task.id, col) }
+          onSetStatus = { col -> onUpdateKanbanStatus(task.id, col) },
+          onStartFocus = { onStartFocus?.invoke(task) }
         )
       }
     }
@@ -807,7 +895,8 @@ private fun ProjectDetailView(
           task = task,
           onToggle = { onToggleTask(task.id) },
           onClick = { onTaskClick(task.id) },
-          onSetStatus = { col -> onUpdateKanbanStatus(task.id, col) }
+          onSetStatus = { col -> onUpdateKanbanStatus(task.id, col) },
+          onStartFocus = { onStartFocus?.invoke(task) }
         )
       }
     }
@@ -846,7 +935,8 @@ private fun ProjectTaskRowItem(
   task: TaskItem,
   onToggle: () -> Unit,
   onClick: () -> Unit,
-  onSetStatus: (KanbanColumn) -> Unit
+  onSetStatus: (KanbanColumn) -> Unit,
+  onStartFocus: (() -> Unit)? = null
 ) {
   val context = LocalContext.current
   val haptic = LocalHapticFeedback.current
@@ -887,7 +977,7 @@ private fun ProjectTaskRowItem(
         )
       }
 
-      // Title & Subtext
+      // Title & Subtext & Course Badge
       Column(modifier = Modifier.weight(1f)) {
         Text(
           text = task.title,
@@ -898,38 +988,92 @@ private fun ProjectTaskRowItem(
           maxLines = 1,
           overflow = TextOverflow.Ellipsis
         )
-        if (task.dueDate.isNotBlank()) {
-          Text(
-            text = task.dueDate,
-            fontSize = 10.5.sp,
-            color = BrandSecondary
-          )
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+          if (!task.courseName.isNullOrBlank()) {
+            Surface(
+              shape = RoundedCornerShape(4.dp),
+              color = BrandTerracottaBg
+            ) {
+              Text(
+                text = task.courseName,
+                fontSize = 9.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = BrandTerracotta,
+                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+              )
+            }
+          }
+          if (task.dueDate.isNotBlank()) {
+            Text(
+              text = task.dueDate,
+              fontSize = 10.5.sp,
+              color = BrandSecondary
+            )
+          }
         }
       }
 
-      // Quick Status Pill
+      // Action Pills: 1-Tap Fokus & Status Pill
       if (!isDone) {
-        Surface(
-          shape = RoundedCornerShape(6.dp),
-          color = if (task.kanbanStatus == KanbanColumn.IN_PROGRESS) LinearInProgressAmber.copy(alpha = 0.15f) else BrandCanvas,
-          modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .clickable {
-              HapticEngine.selection(context, haptic)
-              if (task.kanbanStatus == KanbanColumn.IN_PROGRESS) {
-                onSetStatus(KanbanColumn.TO_DO)
-              } else {
-                onSetStatus(KanbanColumn.IN_PROGRESS)
-              }
-            }
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-          Text(
-            text = if (task.kanbanStatus == KanbanColumn.IN_PROGRESS) "Sedang Jalan" else "Mulai",
-            fontSize = 10.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = if (task.kanbanStatus == KanbanColumn.IN_PROGRESS) Color(0xFFB45309) else BrandCharcoal,
-            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
-          )
+          // Instant 1-tap Focus pill
+          Surface(
+            shape = RoundedCornerShape(6.dp),
+            color = BrandCharcoal,
+            modifier = Modifier
+              .clip(RoundedCornerShape(6.dp))
+              .clickable {
+                HapticEngine.selection(context, haptic)
+                onStartFocus?.invoke()
+              }
+          ) {
+            Row(
+              modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.5.dp),
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+              Text(
+                text = "⚡",
+                fontSize = 9.sp
+              )
+              Text(
+                text = "Fokus",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+              )
+            }
+          }
+
+          // Quick Status Pill
+          Surface(
+            shape = RoundedCornerShape(6.dp),
+            color = if (task.kanbanStatus == KanbanColumn.IN_PROGRESS) LinearInProgressAmber.copy(alpha = 0.15f) else BrandCanvas,
+            modifier = Modifier
+              .clip(RoundedCornerShape(6.dp))
+              .clickable {
+                HapticEngine.selection(context, haptic)
+                if (task.kanbanStatus == KanbanColumn.IN_PROGRESS) {
+                  onSetStatus(KanbanColumn.TO_DO)
+                } else {
+                  onSetStatus(KanbanColumn.IN_PROGRESS)
+                }
+              }
+          ) {
+            Text(
+              text = if (task.kanbanStatus == KanbanColumn.IN_PROGRESS) "Sedang Jalan" else "Mulai",
+              fontSize = 10.sp,
+              fontWeight = FontWeight.SemiBold,
+              color = if (task.kanbanStatus == KanbanColumn.IN_PROGRESS) Color(0xFFB45309) else BrandCharcoal,
+              modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+            )
+          }
         }
       }
     }

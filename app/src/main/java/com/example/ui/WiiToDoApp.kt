@@ -18,9 +18,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -338,7 +340,22 @@ fun WiiToDoApp(
                   onFocusMiniPlayerClick = { viewModel.navigateTo(AppDestination.ActiveFocus) },
                   onToggleTimer = { viewModel.toggleFocusTimerRunning() },
                   onCompleteSprint = { viewModel.completeCurrentSprint() },
-                  userProfile = userProfile
+                  userProfile = userProfile,
+                  tasks = tasks,
+                  onStartFocusTask = { task ->
+                    val effort = if (task.estimatedEffortMinutes > 0) task.estimatedEffortMinutes else 25
+                    viewModel.startFocusSession(
+                      taskTitle = task.title,
+                      minutes = effort,
+                      taskId = task.id,
+                      courseBadge = task.courseName
+                    )
+                  },
+                  onTaskClick = { id ->
+                    selectedDetailTaskId = id
+                    viewModel.navigateTo(AppDestination.TaskDetail(id))
+                  },
+                  onToggleTaskComplete = { viewModel.toggleTaskCompletion(it) }
                 )
               }
 
@@ -365,7 +382,16 @@ fun WiiToDoApp(
                       dueDate = "Today"
                     )
                   },
-                  userProfile = userProfile
+                  userProfile = userProfile,
+                  onStartFocus = { task ->
+                    val effort = if (task.estimatedEffortMinutes > 0) task.estimatedEffortMinutes else 25
+                    viewModel.startFocusSession(
+                      taskTitle = task.title,
+                      minutes = effort,
+                      taskId = task.id,
+                      courseBadge = task.courseName
+                    )
+                  }
                 )
               }
 
@@ -612,6 +638,7 @@ fun WiiToDoApp(
 
     // Global Persistent Floating Focus Mini-Player (Apple Dynamic Island / Spotify style)
     if (activeFocus != null && !activeFocus!!.isDismissed && destination !is AppDestination.ActiveFocus && destination !is AppDestination.FocusSummary) {
+      val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
       FloatingFocusMiniPlayer(
         session = activeFocus!!,
         tasks = tasks,
@@ -621,7 +648,8 @@ fun WiiToDoApp(
         onDismiss = { viewModel.dismissFocusSession() },
         modifier = Modifier
           .align(Alignment.BottomCenter)
-          .padding(bottom = if (isPrimaryTab) 86.dp else 24.dp)
+          .padding(horizontal = 16.dp)
+          .padding(bottom = if (isPrimaryTab) (84.dp + bottomInset) else (16.dp + bottomInset))
       )
     }
 

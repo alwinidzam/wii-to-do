@@ -38,6 +38,8 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -61,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.FocusSessionState
 import com.example.data.model.ScheduleCommitment
+import com.example.data.model.TaskItem
 import com.example.ui.components.DateStripSelector
 import com.example.ui.components.UnifiedTopAppBar
 import com.example.ui.components.WiiBrandLogo
@@ -95,7 +98,11 @@ fun ScheduleScreen(
   onToggleTimer: () -> Unit,
   modifier: Modifier = Modifier,
   onCompleteSprint: () -> Unit = {},
-  userProfile: com.example.data.model.UserProfile? = null
+  userProfile: com.example.data.model.UserProfile? = null,
+  tasks: List<TaskItem> = emptyList(),
+  onStartFocusTask: ((TaskItem) -> Unit)? = null,
+  onTaskClick: ((String) -> Unit)? = null,
+  onToggleTaskComplete: ((String) -> Unit)? = null
 ) {
   val haptic = LocalHapticFeedback.current
   val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -185,6 +192,29 @@ fun ScheduleScreen(
                 color = BrandCharcoal,
                 letterSpacing = (-0.02).sp
               )
+              if (selectedDayIndex != todayIdx) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Surface(
+                  modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable {
+                      haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                      onDaySelected(todayIdx)
+                    },
+                  shape = RoundedCornerShape(8.dp),
+                  color = BrandOliveBg,
+                  border = BorderStroke(1.dp, BrandOliveBorder)
+                ) {
+                  Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                  ) {
+                    Text("⟲", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = BrandOlive)
+                    Text("Hari Ini", fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = BrandOlive)
+                  }
+                }
+              }
               Spacer(modifier = Modifier.width(8.dp))
               Box(modifier = Modifier.size(5.dp).background(BrandOlive, CircleShape))
               Spacer(modifier = Modifier.width(8.dp))
@@ -233,6 +263,147 @@ fun ScheduleScreen(
           selectedIndex = selectedDayIndex,
           onDaySelected = onDaySelected
         )
+      }
+
+      // Today's Deadlines / Due Tasks section
+      val todayTasks = tasks.filter {
+        !it.isCompleted && (it.dueDate.contains("Today", ignoreCase = true) || it.dueDate.contains("Hari Ini", ignoreCase = true))
+      }
+      if (todayTasks.isNotEmpty()) {
+        item {
+          Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            color = Color.White,
+            border = BorderStroke(1.dp, BrandBorder)
+          ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                Row(
+                  verticalAlignment = Alignment.CenterVertically,
+                  horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                  Text("📌", fontSize = 13.sp)
+                  Text(
+                    text = "Tenggat Tugas Hari Ini",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = BrandCharcoal
+                  )
+                }
+                Surface(
+                  shape = RoundedCornerShape(6.dp),
+                  color = BrandTerracottaBg,
+                  border = BorderStroke(1.dp, BrandTerracotta.copy(alpha = 0.25f))
+                ) {
+                  Text(
+                    text = "${todayTasks.size} tugas",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = BrandTerracotta,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                  )
+                }
+              }
+
+              Spacer(modifier = Modifier.height(10.dp))
+
+              todayTasks.forEach { task ->
+                Row(
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 5.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onTaskClick?.invoke(task.id) },
+                  verticalAlignment = Alignment.CenterVertically,
+                  horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                  Box(
+                    modifier = Modifier
+                      .size(24.dp)
+                      .clip(CircleShape)
+                      .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onToggleTaskComplete?.invoke(task.id)
+                      },
+                    contentAlignment = Alignment.Center
+                  ) {
+                    Icon(
+                      imageVector = Icons.Outlined.RadioButtonUnchecked,
+                      contentDescription = null,
+                      tint = BrandSecondary,
+                      modifier = Modifier.size(18.dp)
+                    )
+                  }
+
+                  Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                      text = task.title,
+                      fontSize = 12.5.sp,
+                      fontWeight = FontWeight.SemiBold,
+                      color = BrandCharcoal,
+                      maxLines = 1,
+                      overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                    Row(
+                      verticalAlignment = Alignment.CenterVertically,
+                      horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                      if (!task.courseName.isNullOrBlank()) {
+                        Surface(shape = RoundedCornerShape(3.dp), color = BrandTerracottaBg) {
+                          Text(
+                            text = task.courseName,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = BrandTerracotta,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                          )
+                        }
+                      }
+                      if (task.dueTime.isNotBlank()) {
+                        Text(
+                          text = "Pukul ${task.dueTime}",
+                          fontSize = 10.sp,
+                          color = BrandSecondary
+                        )
+                      }
+                    }
+                  }
+
+                  // 1-Tap Focus
+                  Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = BrandCharcoal,
+                    modifier = Modifier
+                      .clip(RoundedCornerShape(6.dp))
+                      .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onStartFocusTask?.invoke(task)
+                      }
+                  ) {
+                    Row(
+                      modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.5.dp),
+                      verticalAlignment = Alignment.CenterVertically,
+                      horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                      Text("⚡", fontSize = 9.sp)
+                      Text(
+                        text = "Fokus",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                      )
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
 
       if (viewMode == "Week") {
@@ -572,6 +743,125 @@ fun ScheduleScreen(
                   color = BrandSecondary,
                   maxLines = 1
                 )
+              }
+
+              if (!item.isCompleted) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.End
+                ) {
+                  Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = if (activeFocusSession?.isRunning == true && item.isCurrentFocus) BrandOliveBg else BrandCharcoal,
+                    border = if (activeFocusSession?.isRunning == true && item.isCurrentFocus) BorderStroke(1.dp, BrandOliveBorder) else null,
+                    modifier = Modifier
+                      .clip(RoundedCornerShape(6.dp))
+                      .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        if (activeFocusSession?.isRunning == true && item.isCurrentFocus) {
+                          onFocusMiniPlayerClick()
+                        } else {
+                          onScheduleSlotClick(item.startTime, item.endTime)
+                        }
+                      }
+                  ) {
+                    Row(
+                      modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                      verticalAlignment = Alignment.CenterVertically,
+                      horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                      Text("⚡", fontSize = 10.sp)
+                      Text(
+                        text = if (activeFocusSession?.isRunning == true && item.isCurrentFocus) "Sedang Berjalan" else "Mulai Sesi",
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (activeFocusSession?.isRunning == true && item.isCurrentFocus) BrandOlive else Color.White
+                      )
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Unscheduled pending tasks tray
+      val unscheduledTasks = tasks.filter { !it.isCompleted && !todayTasks.contains(it) }.take(4)
+      if (unscheduledTasks.isNotEmpty()) {
+        item {
+          Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            color = Color.White,
+            border = BorderStroke(1.dp, BrandBorder)
+          ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                Row(
+                  verticalAlignment = Alignment.CenterVertically,
+                  horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                  Text("📥", fontSize = 13.sp)
+                  Text(
+                    text = "Tugas Belum Terjadwal",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = BrandCharcoal
+                  )
+                }
+                Text(
+                  text = "${unscheduledTasks.size} siap dieksekusi",
+                  fontSize = 10.sp,
+                  color = BrandSecondary
+                )
+              }
+
+              Spacer(modifier = Modifier.height(10.dp))
+
+              unscheduledTasks.forEach { task ->
+                Row(
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                  verticalAlignment = Alignment.CenterVertically,
+                  horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                  Text(
+                    text = "• ${task.title}",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = BrandCharcoal,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                  )
+
+                  Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = BrandCanvas,
+                    border = BorderStroke(1.dp, BrandBorderLight),
+                    modifier = Modifier
+                      .clip(RoundedCornerShape(6.dp))
+                      .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onStartFocusTask?.invoke(task)
+                      }
+                  ) {
+                    Text(
+                      text = "⚡ Fokus",
+                      fontSize = 10.sp,
+                      fontWeight = FontWeight.SemiBold,
+                      color = BrandCharcoal,
+                      modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                    )
+                  }
+                }
               }
             }
           }

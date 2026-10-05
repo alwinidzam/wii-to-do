@@ -38,10 +38,10 @@ import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.VolumeUp
 import com.example.data.auth.AuthResult
+import com.example.ui.components.UserAvatarDisplay
 import com.example.ui.sheets.AvatarPickerBottomSheet
 import com.example.ui.sheets.ChangePasswordBottomSheet
 import com.example.ui.sheets.EditProfileBottomSheet
-import com.example.ui.sheets.PRESET_AVATARS
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -206,9 +206,6 @@ fun ProfileScreen(
           verticalAlignment = Alignment.CenterVertically
         ) {
           // Interactive Avatar with Camera Badge
-          val avatarBgColor = profile.avatarColorHex?.let { Color(it) } ?: BrandAvatarBg
-          val preset = PRESET_AVATARS.find { it.id == profile.avatarPresetId }
-
           Box(
             modifier = Modifier
               .size(62.dp)
@@ -218,33 +215,16 @@ fun ProfileScreen(
                 showAvatarPickerSheet = true
               }
           ) {
-            Surface(
+            UserAvatarDisplay(
+              avatarUri = profile.avatarUri,
+              presetId = profile.avatarPresetId,
+              colorHex = profile.avatarColorHex,
+              initials = avatarInitials,
               modifier = Modifier.fillMaxSize(),
-              shape = CircleShape,
-              color = avatarBgColor,
-              border = BorderStroke(1.5.dp, BrandAvatarBorder)
-            ) {
-              Box(contentAlignment = Alignment.Center) {
-                if (preset != null) {
-                  Text(
-                    text = preset.emoji,
-                    fontSize = 26.sp
-                  )
-                } else if (!profile.avatarUri.isNullOrEmpty()) {
-                  Text(
-                    text = "📷",
-                    fontSize = 24.sp
-                  )
-                } else {
-                  Text(
-                    text = avatarInitials,
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (profile.avatarColorHex != null) Color.White else BrandCharcoal
-                  )
-                }
-              }
-            }
+              borderWidth = 1.5.dp,
+              borderColor = BrandAvatarBorder,
+              fontSize = 19.sp
+            )
 
             // Edit Camera Badge Overlay (Apple HIG style)
             Surface(
